@@ -1,0 +1,75 @@
+{
+  "name": "MedicineSchedule",
+  "type": "object",
+  "properties": {
+    "patient_id": {
+      "type": "string"
+    },
+    "medicine_id": {
+      "type": "string"
+    },
+    "medicine_name": {
+      "type": "string"
+    },
+    "dosage": {
+      "type": "string"
+    },
+    "frequency": {
+      "type": "string",
+      "enum": [
+        "once_daily",
+        "twice_daily",
+        "thrice_daily",
+        "four_times_daily",
+        "every_4_hours",
+        "every_6_hours",
+        "every_8_hours",
+        "as_needed",
+        "weekly"
+      ]
+    },
+    "scheduled_times": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "instructions": {
+      "type": "string"
+    },
+    "prescribed_by": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "completed",
+        "paused",
+        "cancelled"
+      ],
+      "default": "active"
+    },
+    "interaction_warning": {
+      "type": "boolean",
+      "default": false
+    },
+    "allergy_warning": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "patient_id",
+    "medicine_name",
+    "dosage"
+  ]
+}

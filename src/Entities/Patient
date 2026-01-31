@@ -1,0 +1,103 @@
+{
+  "name": "Patient",
+  "type": "object",
+  "properties": {
+    "file_number": {
+      "type": "string",
+      "description": "Unique patient file/registration number"
+    },
+    "full_name": {
+      "type": "string",
+      "description": "Patient's full name"
+    },
+    "date_of_birth": {
+      "type": "string",
+      "format": "date"
+    },
+    "gender": {
+      "type": "string",
+      "enum": [
+        "male",
+        "female",
+        "other"
+      ]
+    },
+    "blood_type": {
+      "type": "string",
+      "enum": [
+        "A+",
+        "A-",
+        "B+",
+        "B-",
+        "AB+",
+        "AB-",
+        "O+",
+        "O-"
+      ]
+    },
+    "admission_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ward_id": {
+      "type": "string"
+    },
+    "bed_number": {
+      "type": "string"
+    },
+    "primary_diagnosis": {
+      "type": "string"
+    },
+    "secondary_diagnoses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "allergies": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "emergency_contact_name": {
+      "type": "string"
+    },
+    "emergency_contact_phone": {
+      "type": "string"
+    },
+    "assigned_doctor_id": {
+      "type": "string"
+    },
+    "assigned_nurse_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "admitted",
+        "discharged",
+        "critical",
+        "stable",
+        "recovering"
+      ],
+      "default": "admitted"
+    },
+    "photo_url": {
+      "type": "string"
+    },
+    "insurance_id": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "full_name",
+    "date_of_birth"
+  ]
+}

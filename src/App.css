@@ -1,0 +1,26 @@
+.App {
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+
+.App-header {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1rem 2rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.App-main {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.App-link {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.App-link:hover {
+  text-decoration: underline;
+}

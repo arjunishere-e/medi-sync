@@ -1,0 +1,80 @@
+{
+  "name": "LabReport",
+  "type": "object",
+  "properties": {
+    "patient_id": {
+      "type": "string"
+    },
+    "test_type": {
+      "type": "string",
+      "enum": [
+        "blood_test",
+        "urine_test",
+        "xray",
+        "mri",
+        "ct_scan",
+        "ecg",
+        "ultrasound",
+        "biopsy",
+        "culture",
+        "other"
+      ]
+    },
+    "test_name": {
+      "type": "string"
+    },
+    "ordered_by": {
+      "type": "string"
+    },
+    "ordered_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ordered",
+        "sample_collected",
+        "processing",
+        "completed",
+        "cancelled"
+      ],
+      "default": "ordered"
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+              }
+    },
+    "file_url": {
+      "type": "string"
+    },
+    "ai_summary": {
+      "type": "string"
+    },
+    "ai_recommendations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "critical_findings": {
+      "type": "boolean",
+      "default": false
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "patient_id",
+    "test_type",
+    "test_name"
+  ]
+}

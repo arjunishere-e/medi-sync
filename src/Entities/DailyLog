@@ -1,0 +1,104 @@
+{
+  "name": "DailyLog",
+  "type": "object",
+  "properties": {
+    "patient_id": {
+      "type": "string"
+    },
+    "log_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "logged_by": {
+      "type": "string"
+    },
+    "logged_by_role": {
+      "type": "string",
+      "enum": [
+        "doctor",
+        "nurse",
+        "patient"
+      ]
+    },
+    "log_type": {
+      "type": "string",
+      "enum": [
+        "clinical_note",
+        "nursing_note",
+        "patient_update",
+        "procedure",
+        "consultation",
+        "diet",
+        "activity",
+        "pain_level",
+        "mood"
+      ]
+    },
+    "content": {
+      "type": "string"
+    },
+    "vitals_summary": {
+      "type": "object",
+      "properties": {
+        "avg_heart_rate": {
+          "type": "number"
+        },
+        "avg_bp_systolic": {
+          "type": "number"
+        },
+        "avg_bp_diastolic": {
+          "type": "number"
+        },
+        "avg_temperature": {
+          "type": "number"
+        },
+        "avg_spo2": {
+          "type": "number"
+        }
+      }
+    },
+    "pain_level": {
+      "type": "number",
+      "description": "Scale 0-10"
+    },
+    "mood": {
+      "type": "string",
+      "enum": [
+        "excellent",
+        "good",
+        "fair",
+        "poor",
+        "very_poor"
+      ]
+    },
+    "diet_intake": {
+      "type": "string",
+      "enum": [
+        "full",
+        "partial",
+        "minimal",
+        "none",
+        "npo"
+      ]
+    },
+    "mobility": {
+      "type": "string",
+      "enum": [
+        "independent",
+        "assisted",
+        "wheelchair",
+        "bedridden"
+      ]
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "patient_id",
+    "content"
+  ]
+}

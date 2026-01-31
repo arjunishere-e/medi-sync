@@ -1,0 +1,68 @@
+{
+  "name": "VitalReading",
+  "type": "object",
+  "properties": {
+    "patient_id": {
+      "type": "string",
+      "description": "Reference to Patient"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "heart_rate": {
+      "type": "number",
+      "description": "BPM"
+    },
+    "blood_pressure_systolic": {
+      "type": "number"
+    },
+    "blood_pressure_diastolic": {
+      "type": "number"
+    },
+    "temperature": {
+      "type": "number",
+      "description": "Celsius"
+    },
+    "spo2": {
+      "type": "number",
+      "description": "Oxygen saturation percentage"
+    },
+    "respiratory_rate": {
+      "type": "number",
+      "description": "Breaths per minute"
+    },
+    "motion_detected": {
+      "type": "boolean"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "iot_sensor",
+        "manual",
+        "wearable"
+      ],
+      "default": "iot_sensor"
+    },
+    "anomaly_detected": {
+      "type": "boolean",
+      "default": false
+    },
+    "anomaly_type": {
+      "type": "string"
+    },
+    "anomaly_severity": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    }
+  },
+  "required": [
+    "patient_id",
+    "timestamp"
+  ]
+}

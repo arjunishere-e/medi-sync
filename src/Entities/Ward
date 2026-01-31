@@ -1,0 +1,69 @@
+{
+  "name": "Ward",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "code": {
+      "type": "string"
+    },
+    "floor": {
+      "type": "number"
+    },
+    "ward_type": {
+      "type": "string",
+      "enum": [
+        "general",
+        "icu",
+        "pediatric",
+        "maternity",
+        "surgical",
+        "cardiac",
+        "oncology",
+        "emergency",
+        "psychiatric"
+      ]
+    },
+    "total_beds": {
+      "type": "number"
+    },
+    "occupied_beds": {
+      "type": "number"
+    },
+    "head_nurse_id": {
+      "type": "string"
+    },
+    "assigned_doctors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "assigned_nurses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "equipment": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "maintenance",
+        "closed"
+      ],
+      "default": "active"
+    }
+  },
+  "required": [
+    "name",
+    "code"
+  ]
+}

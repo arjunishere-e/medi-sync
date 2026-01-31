@@ -1,0 +1,88 @@
+{
+  "name": "Alert",
+  "type": "object",
+  "properties": {
+    "patient_id": {
+      "type": "string"
+    },
+    "patient_name": {
+      "type": "string"
+    },
+    "ward_id": {
+      "type": "string"
+    },
+    "bed_number": {
+      "type": "string"
+    },
+    "alert_type": {
+      "type": "string",
+      "enum": [
+        "vital_anomaly",
+        "fall_detected",
+        "medicine_due",
+        "medicine_missed",
+        "lab_critical",
+        "patient_call",
+        "equipment_alarm",
+        "discharge_ready",
+        "allergy_warning",
+        "interaction_warning"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "default": "medium"
+    },
+    "title": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "triggered_value": {
+      "type": "string"
+    },
+    "threshold": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "acknowledged",
+        "resolved",
+        "escalated"
+      ],
+      "default": "active"
+    },
+    "acknowledged_by": {
+      "type": "string"
+    },
+    "acknowledged_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "resolved_by": {
+      "type": "string"
+    },
+    "resolved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ai_recommendation": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "alert_type",
+    "title",
+    "message"
+  ]
+}

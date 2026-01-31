@@ -1,0 +1,80 @@
+{
+  "name": "Appointment",
+  "type": "object",
+  "properties": {
+    "patient_id": {
+      "type": "string",
+      "description": "Patient Firestore document ID"
+    },
+    "patient_name": {
+      "type": "string",
+      "description": "Patient full name"
+    },
+    "patient_file_number": {
+      "type": "string",
+      "description": "Patient file number"
+    },
+    "patient_contact": {
+      "type": "string",
+      "description": "Patient phone number"
+    },
+    "doctor_id": {
+      "type": "string",
+      "description": "Doctor Firestore user ID"
+    },
+    "doctor_name": {
+      "type": "string",
+      "description": "Doctor full name"
+    },
+    "doctor_specialty": {
+      "type": "string",
+      "description": "Doctor specialty/department"
+    },
+    "appointment_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Appointment date (YYYY-MM-DD)"
+    },
+    "appointment_time": {
+      "type": "string",
+      "description": "Appointment start time (HH:MM 24-hour format)"
+    },
+    "appointment_end_time": {
+      "type": "string",
+      "description": "Appointment end time (15 minutes after start)"
+    },
+    "token_number": {
+      "type": "integer",
+      "description": "Token number for the day"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["booked", "completed", "cancelled", "no-show"],
+      "default": "booked",
+      "description": "Appointment status"
+    },
+    "booking_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the appointment was booked"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    },
+    "receipt_generated": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether receipt has been generated"
+    }
+  },
+  "required": [
+    "patient_id",
+    "patient_name",
+    "patient_file_number",
+    "doctor_id",
+    "doctor_name",
+    "appointment_date",
+    "appointment_time"
+  ]
+}
