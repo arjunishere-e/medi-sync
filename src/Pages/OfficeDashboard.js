@@ -103,7 +103,7 @@ export default function OfficeDashboard() {
       id: alert.id,
       data: {
         status: 'acknowledged',
-        acknowledged_by: user?.email,
+        acknowledged_by: user?.name,
         acknowledged_at: new Date().toISOString()
       }
     });
