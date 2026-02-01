@@ -71,6 +71,12 @@ export default function BookAppointment() {
     const dayStart = 9 * 60; // 9 AM in minutes
     const dayEnd = 17 * 60; // 5 PM in minutes
 
+    // Determine if selected date is today and current time in minutes
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const isSelectedToday = selectedDate === todayStr;
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
     for (let minutes = dayStart; minutes < dayEnd; minutes += 15) {
       const hours = Math.floor(minutes / 60);
       const mins = minutes % 60;
@@ -86,9 +92,14 @@ export default function BookAppointment() {
         );
       });
 
+      // BookMyShow-like logic: if booking for today, disable any past slots
+      const isPastTodaySlot = isSelectedToday && minutes <= nowMinutes;
+
       slots.push({
         time: timeStr,
-        isAvailable: !isBooked
+        isAvailable: !isBooked && !isPastTodaySlot,
+        isBooked,
+        isPast: isPastTodaySlot
       });
     }
 
@@ -441,7 +452,10 @@ For cancellations, please notify 24 hours in advance.
                           key={slot.time}
                           onClick={() => {
                             if (!slot.isAvailable) {
-                              alert('This slot is already booked. Please choose a different time.');
+                              alert(slot.isBooked
+                                ? 'This slot is already booked. Please choose a different time.'
+                                : 'This slot has already passed for today. Please choose a future time.'
+                              );
                               return;
                             }
                             setSelectedTime(slot.time);
@@ -454,7 +468,7 @@ For cancellations, please notify 24 hours in advance.
                               ? 'border-green-500 bg-green-50 text-green-900'
                               : 'border-slate-300 bg-white hover:border-green-300 text-slate-900'
                           }`}
-                          title={!slot.isAvailable ? 'Booked slot' : 'Select time'}
+                          title={!slot.isAvailable ? (slot.isBooked ? 'Booked slot' : 'Past slot') : 'Select time'}
                         >
                           {slot.time}
                         </button>
