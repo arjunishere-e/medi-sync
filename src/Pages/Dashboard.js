@@ -133,9 +133,25 @@ export default function Dashboard() {
     return alerts.filter(a => a.patient_id === patientId && a.status === 'active').length;
   };
 
+  // Patient status alerts: alerts tied to a patient
+  // For nurses, explicitly exclude appointment-related notifications
+  const patientStatusAlerts = useMemo(() => {
+    const base = alerts.filter(a => !!a.patient_id);
+    // Hide appointment notifications on nurse dashboard
+    if (user?.role === 'nurse') {
+      return base.filter(a => {
+        const type = (a.alert_type || '').toString().toLowerCase();
+        const text = `${a.title || ''} ${a.message || ''}`.toLowerCase();
+        const isAppointmentType = ['appointment', 'appointment_confirmed', 'booking', 'appointment_booked'].includes(type);
+        const mentionsAppointment = text.includes('appointment');
+        return !(isAppointmentType || mentionsAppointment);
+      });
+    }
+    return base;
+  }, [alerts, user]);
   const [alertsTab, setAlertsTab] = useState('active');
-  const activeAlerts = alerts.filter(a => a.status === 'active');
-  const acknowledgedAlerts = alerts.filter(a => a.status === 'acknowledged');
+  const activeAlerts = patientStatusAlerts.filter(a => a.status === 'active');
+  const acknowledgedAlerts = patientStatusAlerts.filter(a => a.status === 'acknowledged');
   const criticalAlerts = activeAlerts.filter(a => a.severity === 'critical' || a.severity === 'high');
   
   // Count unique critical patients (not alerts)
@@ -148,7 +164,6 @@ export default function Dashboard() {
   console.log('🚨 Critical alerts:', criticalAlerts);
   const criticalPatients = patients.filter(p => p.status === 'critical');
   const totalBeds = wards.reduce((sum, w) => sum + (w.total_beds || 0), 0);
-  const occupiedBeds = wards.reduce((sum, w) => sum + (w.occupied_beds || 0), 0);
 
   // Compute ward occupancy from current patients (exclude discharged)
   const wardOccupancy = useMemo(() => {
@@ -239,7 +254,7 @@ export default function Dashboard() {
               color="blue"
             />
           </Link>
-          <Link to="/#alerts" className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded">
+          <Link to="/alerts" className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded">
             <StatsCard
               title="Active Alerts"
               value={activeAlerts.length}
@@ -251,8 +266,8 @@ export default function Dashboard() {
           <Link to="/ward-management" className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded">
             <StatsCard
               title="Bed Occupancy"
-              value={`${occupiedBeds}/${totalBeds}`}
-              subtitle={`${Math.round((occupiedBeds/totalBeds)*100) || 0}% occupied`}
+              value={`${Array.from(wardOccupancy.values()).reduce((a,b)=>a+b,0)}/${totalBeds}`}
+              subtitle={`${Math.round(((Array.from(wardOccupancy.values()).reduce((a,b)=>a+b,0))/ (totalBeds || 1))*100) || 0}% occupied`}
               icon={Bed}
               color="green"
             />
@@ -319,9 +334,11 @@ export default function Dashboard() {
                   </ul>
                 )}
               </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Link to="/staff-scheduling"><Button variant="outline">Manage Scheduling</Button></Link>
-              </div>
+              {user?.role === 'office' && (
+                <div className="flex justify-end gap-2 pt-2">
+                  <Link to="/staff-scheduling"><Button variant="outline">Manage Scheduling</Button></Link>
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
@@ -373,6 +390,7 @@ export default function Dashboard() {
                             latestVitals={getLatestVitals(patient.id)}
                             alertCount={getAlertCount(patient.id)}
                             ctaAsButton
+                            wards={wards}
                           />
                         </Link>
                       ))}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useQuery } from '@tanstack/react-query';
@@ -29,6 +29,43 @@ export default function Navigation() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showAppointments, setShowAppointments] = useState(false);
+  const userMenuRef = useRef(null);
+  const appointmentsRef = useRef(null);
+
+  // Close popups on outside click or Escape
+  useEffect(() => {
+    const handleGlobalClick = (e) => {
+      // Close user menu if clicking outside
+      if (showUserMenu && userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setShowUserMenu(false);
+      }
+      // Close appointments popup if clicking outside
+      if (showAppointments && appointmentsRef.current && !appointmentsRef.current.contains(e.target)) {
+        setShowAppointments(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (showUserMenu) setShowUserMenu(false);
+        if (showAppointments) setShowAppointments(false);
+      }
+    };
+    document.addEventListener('mousedown', handleGlobalClick);
+    document.addEventListener('touchstart', handleGlobalClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleGlobalClick);
+      document.removeEventListener('touchstart', handleGlobalClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showUserMenu, showAppointments]);
+
+  // Close any open popups on route change (applies across dashboards)
+  useEffect(() => {
+    setShowUserMenu(false);
+    setShowAppointments(false);
+  }, [location.pathname]);
 
   // Fetch critical alerts - real-time updates every 30 seconds
   const { data: alerts = [] } = useQuery({
@@ -56,6 +93,52 @@ export default function Navigation() {
   const criticalPatientIds = new Set(criticalAlerts.map(a => a.patient_id));
   const criticalCount = criticalPatientIds.size;
 
+  // Office notifications: appointments grouped by doctor
+  const { data: appointments = [] } = useQuery({
+    queryKey: ['nav-appointments'],
+    queryFn: async () => {
+      try {
+        const list = await firebaseClient.appointments.list();
+        return Array.isArray(list) ? list : [];
+      } catch (e) {
+        console.error('Error loading appointments for nav:', e);
+        return [];
+      }
+    },
+    enabled: user?.role === 'office',
+    staleTime: 60 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
+  const upcomingAppointments = useMemo(() => {
+    const today = new Date();
+    return appointments.filter(a => {
+      if (a.status && a.status !== 'booked') return false;
+      if (!a.appointment_date) return false;
+      const dt = new Date(`${a.appointment_date}T${a.appointment_time || '00:00'}`);
+      // Show today and future
+      return dt >= new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    });
+  }, [appointments]);
+
+  const appointmentsByDoctor = useMemo(() => {
+    const map = new Map();
+    for (const apt of upcomingAppointments) {
+      const key = apt.doctor_id || apt.doctor_name || 'Unknown Doctor';
+      if (!map.has(key)) map.set(key, { doctorName: apt.doctor_name || 'Unknown Doctor', items: [] });
+      map.get(key).items.push(apt);
+    }
+    // Sort each doctor's items by date/time ascending
+    for (const entry of map.values()) {
+      entry.items.sort((a, b) => {
+        const da = new Date(`${a.appointment_date}T${a.appointment_time || '00:00'}`);
+        const db = new Date(`${b.appointment_date}T${b.appointment_time || '00:00'}`);
+        return da - db;
+      });
+    }
+    return Array.from(map.values()).sort((a, b) => a.doctorName.localeCompare(b.doctorName));
+  }, [upcomingAppointments]);
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -71,8 +154,8 @@ export default function Navigation() {
           </div>
           <div className="hidden md:flex md:space-x-2 lg:space-x-6 flex-1 justify-center">
             {navigation.map((item) => {
-              // Restrict nurse strictly to Dashboard and Patients
-              const nurseAllowed = new Set(['/', '/patients']);
+              // Restrict nurse strictly to Dashboard, Patients and Alerts
+              const nurseAllowed = new Set(['/', '/patients', '/alerts']);
               if (user?.role === 'nurse' && !nurseAllowed.has(item.href)) return null;
 
               // Only show items for current user's role
@@ -97,7 +180,7 @@ export default function Navigation() {
             })}
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            <Link to="/">
+            <Link to="/alerts">
               <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
                 <Bell className="h-4 w-4" />
                 <span className="hidden sm:inline">Alerts</span>
@@ -109,8 +192,63 @@ export default function Navigation() {
               </Button>
             </Link>
 
+            {/* Office: Appointments Notification */}
+            {user?.role === 'office' && (
+              <div className="relative" ref={appointmentsRef}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 whitespace-nowrap"
+                  onClick={() => setShowAppointments(!showAppointments)}
+                >
+                  <Calendar className="h-4 w-4" />
+                  <span className="hidden sm:inline">Appointments</span>
+                  {upcomingAppointments.length > 0 && (
+                    <Badge className="ml-0 sm:ml-1">{upcomingAppointments.length}</Badge>
+                  )}
+                </Button>
+                {showAppointments && (
+                  <div className="absolute right-0 mt-2 w-96 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                    <div className="px-4 py-3 border-b border-gray-100">
+                      <p className="text-sm font-semibold text-gray-900">Upcoming Appointments</p>
+                      <p className="text-xs text-gray-500 mt-1">Grouped by doctor</p>
+                    </div>
+                    <div className="max-h-96 overflow-auto">
+                      {appointmentsByDoctor.length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-gray-500">No upcoming appointments</div>
+                      ) : (
+                        appointmentsByDoctor.map(group => (
+                          <div key={group.doctorName} className="border-b border-gray-100">
+                            <div className="px-4 py-2 bg-gray-50 flex items-center justify-between">
+                              <div className="text-sm font-semibold text-gray-800">{group.doctorName}</div>
+                              <Badge variant="outline">{group.items.length}</Badge>
+                            </div>
+                            <ul className="divide-y divide-gray-100">
+                              {group.items.map(item => (
+                                <li key={item.id} className="px-4 py-2 text-sm">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium text-gray-900">{item.patient_name}</span>
+                                    <span className="text-gray-700">
+                                      {item.appointment_time || '—'}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {item.appointment_date}
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* User Menu */}
-            <div className="relative">
+            <div className="relative" ref={userMenuRef}>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -150,8 +288,8 @@ export default function Navigation() {
       <div className="md:hidden border-t border-gray-100">
         <div className="pt-2 pb-3 space-y-1 px-2">
           {navigation.map((item) => {
-            // Restrict nurse strictly to Dashboard and Patients
-            const nurseAllowed = new Set(['/', '/patients']);
+            // Restrict nurse strictly to Dashboard, Patients and Alerts
+            const nurseAllowed = new Set(['/', '/patients', '/alerts']);
             if (user?.role === 'nurse' && !nurseAllowed.has(item.href)) return null;
 
             // Only show items for current user's role

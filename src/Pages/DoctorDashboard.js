@@ -191,9 +191,14 @@ export default function DoctorDashboard() {
   };
 
   const criticalPatients = patients.filter(p => p.status === 'critical');
+  // Patient status alerts only
+  const patientStatusAlerts = useMemo(
+    () => alerts.filter(a => !!a.patient_id),
+    [alerts]
+  );
   const [alertsTab, setAlertsTab] = useState('active');
-  const activeAlerts = alerts.filter(a => a.status === 'active');
-  const acknowledgedAlerts = alerts.filter(a => a.status === 'acknowledged');
+  const activeAlerts = patientStatusAlerts.filter(a => a.status === 'active');
+  const acknowledgedAlerts = patientStatusAlerts.filter(a => a.status === 'acknowledged');
   const criticalAlerts = activeAlerts.filter(a => a.severity === 'critical' || a.severity === 'high');
   
   // Count unique critical patients (not alerts)

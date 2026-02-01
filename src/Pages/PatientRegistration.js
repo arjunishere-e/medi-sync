@@ -71,12 +71,31 @@ export default function PatientRegistration() {
       console.log('📝 Registering patient to Firestore:', patient);
       return firebaseClient.patients.create(patient);
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       // Invalidate all related queries to sync across all dashboards
       console.log('✅ Patient registered successfully! Document ID:', result.id);
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       queryClient.invalidateQueries({ queryKey: ['all-patients'] });
       queryClient.invalidateQueries({ queryKey: ['wards'] });
+      // If status is critical, create an alert
+      try {
+        if (formData.status === 'critical') {
+          await base44.entities.Alert.create({
+            patient_id: result.id,
+            patient_name: formData.full_name,
+            ward_id: formData.ward_id || null,
+            bed_number: formData.bed_number || null,
+            alert_type: 'vital_anomaly',
+            severity: 'critical',
+            title: 'Critical Status Registered',
+            message: `${formData.full_name} registered as critical. Immediate attention required.`,
+            status: 'active'
+          });
+          queryClient.invalidateQueries({ queryKey: ['alerts'] });
+        }
+      } catch (e) {
+        console.error('Error creating critical alert on registration:', e);
+      }
       alert('Patient registered successfully!');
       setTimeout(() => navigate('/'), 500);
     },

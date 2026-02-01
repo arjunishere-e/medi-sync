@@ -166,6 +166,16 @@ export const firebaseClient = {
         throw error;
       }
     },
+    async update(alertId, data) {
+      try {
+        const docRef = doc(db, 'alerts', alertId);
+        await updateDoc(docRef, data);
+        return { id: alertId, ...data };
+      } catch (error) {
+        console.error('Error updating alert:', error);
+        throw error;
+      }
+    },
   },
 
   // Vital Readings operations

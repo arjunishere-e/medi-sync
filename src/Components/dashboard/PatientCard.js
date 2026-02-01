@@ -25,7 +25,7 @@ const statusColors = {
   discharged: 'bg-slate-100 text-slate-700'
 };
 
-export default function PatientCard({ patient, latestVitals, alertCount = 0, onClick, ctaAsButton = false }) {
+export default function PatientCard({ patient, latestVitals, alertCount = 0, onClick, ctaAsButton = false, wards = [] }) {
   const daysAdmitted = patient.admission_date 
     ? differenceInDays(new Date(), new Date(patient.admission_date)) 
     : 0;
@@ -56,7 +56,12 @@ export default function PatientCard({ patient, latestVitals, alertCount = 0, onC
               <h3 className="font-semibold text-slate-900">{patient.full_name}</h3>
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <Bed className="h-3 w-3" />
-                <span>Bed {patient.bed_number || 'N/A'}</span>
+                <span>
+                  Bed {patient.bed_number || 'N/A'}
+                  {patient.ward_id && (
+                    <> • {wards.find(w => w.id === patient.ward_id)?.name || 'Ward'} </>
+                  )}
+                </span>
               </div>
               {patient.file_number && (
                 <div className="text-xs text-slate-600 font-mono mt-1">

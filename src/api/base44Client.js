@@ -22,7 +22,9 @@ class Base44Client {
           this.useFirebase ? firebaseClient.alerts.list(order, limit) : this.mockList('alerts', limit),
         get: (id) => this.mockGet('alert', id),
         create: (data) => 
-          this.useFirebase ? firebaseClient.alerts.create(data) : this.mockCreate('alert', data)
+          this.useFirebase ? firebaseClient.alerts.create(data) : this.mockCreate('alert', data),
+        update: (id, data) => 
+          this.useFirebase ? firebaseClient.alerts.update(id, data) : this.mockUpdate('alert', id, data)
       },
       VitalReading: {
         list: (order = '-timestamp', limit = 200) => 

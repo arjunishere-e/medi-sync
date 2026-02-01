@@ -68,7 +68,7 @@ export default function OfficeDashboard() {
   const { data: alerts = [], isLoading: alertsLoading, error: alertsError } = useQuery({
     queryKey: ['alerts'],
     queryFn: async () => {
-      const alertsData = await base44.entities.Alert.list('-created_date', 100);
+      const alertsData = await base44.entities.Alert.list('-created_date', 100); // Fetch alerts
       // Ensure alerts have required fields and valid timestamps
       return alertsData.map(alert => ({
         ...alert,
@@ -142,8 +142,13 @@ export default function OfficeDashboard() {
   };
 
   const [alertsTab, setAlertsTab] = useState('active');
-  const activeAlerts = alerts.filter(a => a.status === 'active');
-  const acknowledgedAlerts = alerts.filter(a => a.status === 'acknowledged');
+  // Patient status alerts only for dashboards
+  const patientStatusAlerts = useMemo(
+    () => alerts.filter(a => !!a.patient_id),
+    [alerts]
+  );
+  const activeAlerts = patientStatusAlerts.filter(a => a.status === 'active');
+  const acknowledgedAlerts = patientStatusAlerts.filter(a => a.status === 'acknowledged');
   const criticalAlerts = activeAlerts.filter(a => a.severity === 'critical' || a.severity === 'high');
   
   // Count unique critical patients (not alerts)
@@ -156,7 +161,6 @@ export default function OfficeDashboard() {
   console.log('🚨 Critical alerts:', criticalAlerts);
   const criticalPatients = patients.filter(p => p.status === 'critical');
   const totalBeds = wards.reduce((sum, w) => sum + (w.total_beds || 0), 0);
-  const occupiedBeds = wards.reduce((sum, w) => sum + (w.occupied_beds || 0), 0);
 
   // Compute ward occupancy from current patients (exclude discharged)
   const wardOccupancy = useMemo(() => {
@@ -253,7 +257,7 @@ export default function OfficeDashboard() {
               color="blue"
             />
           </Link>
-          <Link to="/#alerts" className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded">
+          <Link to="/alerts" className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded">
             <StatsCard
               title="Active Alerts"
               value={activeAlerts.length}
@@ -265,8 +269,8 @@ export default function OfficeDashboard() {
           <Link to="/ward-management" className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded">
             <StatsCard
               title="Bed Occupancy"
-              value={`${occupiedBeds}/${totalBeds}`}
-              subtitle={`${Math.round((occupiedBeds/totalBeds)*100) || 0}% occupied`}
+              value={`${Array.from(wardOccupancy.values()).reduce((a,b)=>a+b,0)}/${totalBeds}`}
+              subtitle={`${Math.round(((Array.from(wardOccupancy.values()).reduce((a,b)=>a+b,0))/ (totalBeds || 1))*100) || 0}% occupied`}
               icon={Bed}
               color="green"
             />
@@ -380,6 +384,7 @@ export default function OfficeDashboard() {
                           latestVitals={getLatestVitals(patient.id)}
                           alertCount={getAlertCount(patient.id)}
                           ctaAsButton
+                          wards={wards}
                         />
                       </Link>
                     ))}

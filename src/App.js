@@ -19,6 +19,7 @@ import PatientRegistration from './Pages/PatientRegistration';
 import StaffScheduling from './Pages/StaffScheduling';
 import WardManagement from './Pages/WardManagement';
 import Navigation from './Components/navigation/Navigation';
+import AlertsPage from './Pages/AlertsPage';
 
 const queryClient = new QueryClient();
 
@@ -51,8 +52,8 @@ function AppRoutes() {
     <>
       {user && <Navigation />}
       <Routes>
-        {/* Public route */}
-        <Route path="/login" element={<Login />} />
+        {/* Public route (redirect to dashboard if already logged in) */}
+        <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
 
         {/* Protected routes */}
         <Route
@@ -132,6 +133,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <WardManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/alerts"
+          element={
+            <ProtectedRoute>
+              <AlertsPage />
             </ProtectedRoute>
           }
         />

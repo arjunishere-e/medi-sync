@@ -55,6 +55,12 @@ export default function PatientDetails() {
     duration: ''
   });
 
+  // Fetch wards for mapping ward_id -> ward name
+  const { data: wards = [] } = useQuery({
+    queryKey: ['wards'],
+    queryFn: () => base44.entities.Ward.list(),
+  });
+
   // Fetch patient details
   const { data: patient, isLoading: patientLoading } = useQuery({
     queryKey: ['patient-detail', patientId],
@@ -107,9 +113,28 @@ export default function PatientDetails() {
   const updatePatientMutation = useMutation({
     mutationFn: (updatedData) =>
       firebaseClient.patients.update(patientId, updatedData),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['patient-detail', patientId] });
       queryClient.invalidateQueries({ queryKey: ['patients'] });
+      // If patient saved as critical, ensure alert is created
+      try {
+        if ((patientData?.status || patient?.status) === 'critical') {
+          await base44.entities.Alert.create({
+            patient_id: patientId,
+            patient_name: patientData?.full_name || patient?.full_name,
+            ward_id: patientData?.ward_id || patient?.ward_id || null,
+            bed_number: patientData?.bed_number || patient?.bed_number || null,
+            alert_type: 'vital_anomaly',
+            severity: 'critical',
+            title: 'Patient Marked Critical',
+            message: `${patientData?.full_name || patient?.full_name} marked as critical. Please respond.`,
+            status: 'active'
+          });
+          queryClient.invalidateQueries({ queryKey: ['alerts'] });
+        }
+      } catch (e) {
+        console.error('Error creating critical alert after update:', e);
+      }
       setEditingPatient(false);
       alert('Patient updated successfully!');
     },
@@ -548,6 +573,9 @@ export default function PatientDetails() {
                     <div>
                       <p className="text-sm text-slate-600">Bed Number</p>
                       <p className="font-semibold text-slate-900">{patient.bed_number}</p>
+                      <p className="text-xs text-slate-600 mt-1">
+                        Ward: {wards.find(w => w.id === patient.ward_id)?.name || 'Not assigned'}
+                      </p>
                     </div>
                   </div>
                 )}

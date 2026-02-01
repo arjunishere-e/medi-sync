@@ -211,6 +211,7 @@ export default function Patients() {
                   patient={patient}
                   latestVitals={getLatestVitals(patient.id)}
                   alertCount={getAlertCount(patient.id)}
+                  wards={wards}
                 />
               </Link>
             ))}

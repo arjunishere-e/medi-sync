@@ -138,7 +138,7 @@ export default function Login() {
         office: '/office-dashboard',
         patient: '/patient-dashboard'
       };
-      navigate(dashboards[selectedRole] || '/');
+      navigate(dashboards[selectedRole] || '/', { replace: true });
     } catch (error) {
       setErrors({ submit: error.message || 'An error occurred. Please try again.' });
       console.error('Auth error:', error);
