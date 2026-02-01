@@ -433,9 +433,11 @@ export default function PatientDetails() {
                       onChange={(e) => setPatientData({...patientData, status: e.target.value})}
                       className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 focus:outline-none"
                     >
-                      <option value="stable">Stable</option>
+                      <option value="admitted">Admitted</option>
                       <option value="critical">Critical</option>
+                      <option value="stable">Stable</option>
                       <option value="recovering">Recovering</option>
+                      <option value="discharged">Discharged</option>
                     </select>
                   </div>
 
@@ -562,7 +564,7 @@ export default function PatientDetails() {
                 <Heart className="h-5 w-5" />
                 Vitals
               </CardTitle>
-              {!showVitalForm && (
+              {user?.role === 'doctor' && !showVitalForm && (
                 <Button
                   onClick={() => setShowVitalForm(true)}
                   className="gap-2 bg-blue-600 hover:bg-blue-700"
@@ -575,7 +577,7 @@ export default function PatientDetails() {
             </div>
           </CardHeader>
           <CardContent className="pt-6">
-            {showVitalForm && (
+            {user?.role === 'doctor' && showVitalForm && (
               <form className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
@@ -658,24 +660,26 @@ export default function PatientDetails() {
                           {vital.timestamp ? new Date(vital.timestamp).toLocaleString() : 'Recently'}
                         </p>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEditVital(vital)}
-                          className="p-1 hover:bg-blue-100 rounded text-blue-600"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (window.confirm('Delete this vital reading?')) {
-                              deleteVitalMutation.mutate(vital.id);
-                            }
-                          }}
-                          className="p-1 hover:bg-red-100 rounded text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                      {user?.role === 'doctor' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditVital(vital)}
+                            className="p-1 hover:bg-blue-100 rounded text-blue-600"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Delete this vital reading?')) {
+                                deleteVitalMutation.mutate(vital.id);
+                              }
+                            }}
+                            className="p-1 hover:bg-red-100 rounded text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                       <div>
@@ -710,7 +714,7 @@ export default function PatientDetails() {
                 <Pill className="h-5 w-5" />
                 Medications
               </CardTitle>
-              {!showMedicineForm && (
+              {user?.role === 'doctor' && !showMedicineForm && (
                 <Button
                   onClick={() => setShowMedicineForm(true)}
                   className="gap-2 bg-blue-600 hover:bg-blue-700"
@@ -723,7 +727,7 @@ export default function PatientDetails() {
             </div>
           </CardHeader>
           <CardContent className="pt-6">
-            {showMedicineForm && (
+            {user?.role === 'doctor' && showMedicineForm && (
               <form className="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div className="md:col-span-2">
@@ -813,24 +817,26 @@ export default function PatientDetails() {
                           Prescribed: {medicine.prescribed_date ? new Date(medicine.prescribed_date).toLocaleDateString() : 'Recently'}
                         </p>
                       </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEditMedicine(medicine)}
-                          className="p-1 hover:bg-blue-100 rounded text-blue-600"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (window.confirm('Delete this medicine?')) {
-                              deleteMedicineMutation.mutate(medicine.id);
-                            }
-                          }}
-                          className="p-1 hover:bg-red-100 rounded text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                      {user?.role === 'doctor' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditMedicine(medicine)}
+                            className="p-1 hover:bg-blue-100 rounded text-blue-600"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Delete this medicine?')) {
+                                deleteMedicineMutation.mutate(medicine.id);
+                              }
+                            }}
+                            className="p-1 hover:bg-red-100 rounded text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm mt-2">
                       <div>

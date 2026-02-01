@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import PatientCard from '../Components/dashboard/PatientCard.js';
+import { useAuth } from '../context/AuthContext';
 
 const statusOptions = [
   { value: 'all', label: 'All Status' },
@@ -26,6 +27,7 @@ const statusOptions = [
 ];
 
 export default function Patients() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [wardFilter, setWardFilter] = useState('all');
@@ -87,12 +89,14 @@ export default function Patients() {
             <h1 className="text-3xl font-bold text-slate-900">Patients</h1>
             <p className="text-slate-500 mt-1">Manage and monitor all patients</p>
           </div>
-          <Link to="/patient-registration">
-            <Button className="gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
-              <Plus className="h-4 w-4" />
-              Add Patient
-            </Button>
-          </Link>
+          {user?.role === 'office' && (
+            <Link to="/patient-registration">
+              <Button className="gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700">
+                <Plus className="h-4 w-4" />
+                Add Patient
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* Stats */}
@@ -192,7 +196,7 @@ export default function Patients() {
                   ? 'Try adjusting your filters'
                   : 'Get started by adding your first patient'}
               </p>
-              {!searchQuery && statusFilter === 'all' && (
+              {!searchQuery && statusFilter === 'all' && user?.role === 'office' && (
                 <Link to="/patient-registration">
                   <Button>Add Patient</Button>
                 </Link>

@@ -191,7 +191,9 @@ export default function DoctorDashboard() {
   };
 
   const criticalPatients = patients.filter(p => p.status === 'critical');
+  const [alertsTab, setAlertsTab] = useState('active');
   const activeAlerts = alerts.filter(a => a.status === 'active');
+  const acknowledgedAlerts = alerts.filter(a => a.status === 'acknowledged');
   const criticalAlerts = activeAlerts.filter(a => a.severity === 'critical' || a.severity === 'high');
   
   // Count unique critical patients (not alerts)
@@ -199,6 +201,18 @@ export default function DoctorDashboard() {
   const criticalPatientCount = criticalPatientIds.size;
   
   const pendingReports = Math.floor(Math.random() * 5) + 3;
+
+  // Compute ward occupancy from current patients (exclude discharged)
+  const wardOccupancy = useMemo(() => {
+    const map = new Map();
+    wards.forEach(w => map.set(w.id, 0));
+    patients.forEach(p => {
+      if (p.ward_id && p.status !== 'discharged') {
+        map.set(p.ward_id, (map.get(p.ward_id) || 0) + 1);
+      }
+    });
+    return map;
+  }, [patients, wards]);
 
   if (patientsLoading && alertsLoading) {
     return (
@@ -507,9 +521,14 @@ export default function DoctorDashboard() {
                                 <p className="text-xs text-slate-600 mt-1">Last: BP {patientVitals.blood_pressure} | HR {patientVitals.heart_rate}</p>
                               )}
                             </div>
-                            <Badge className={patient.status === 'critical' ? 'bg-red-600' : 'bg-green-600'}>
-                              {patient.status}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge className={patient.status === 'critical' ? 'bg-red-600' : 'bg-green-600'}>
+                                {patient.status}
+                              </Badge>
+                              <Link to={`/patients/${patient.id}`}>
+                                <Button size="sm" variant="outline" className="h-7 text-xs">View Details</Button>
+                              </Link>
+                            </div>
                           </div>
                         </div>
                       );
@@ -523,17 +542,29 @@ export default function DoctorDashboard() {
           <div className="lg:col-span-1 space-y-6" id="alerts">
             <Card className="shadow">
               <CardHeader className="bg-slate-50 pb-3">
-                <CardTitle className="text-lg">Active Alerts</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Alerts</CardTitle>
+                  <div className="rounded-md border border-slate-200 p-1 bg-white">
+                    <button
+                      className={`px-2 py-1 text-xs rounded ${alertsTab==='active' ? 'bg-slate-900 text-white' : 'text-slate-700'}`}
+                      onClick={() => setAlertsTab('active')}
+                    >Active ({activeAlerts.length})</button>
+                    <button
+                      className={`px-2 py-1 text-xs rounded ${alertsTab==='ack' ? 'bg-slate-900 text-white' : 'text-slate-700'}`}
+                      onClick={() => setAlertsTab('ack')}
+                    >Acknowledged ({acknowledgedAlerts.length})</button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="pt-4">
-                {activeAlerts.length === 0 ? (
+                {(alertsTab==='active' ? activeAlerts : acknowledgedAlerts).length === 0 ? (
                   <div className="text-center py-4 text-sm text-slate-600">
-                    No active alerts ✓
+                    No {(alertsTab==='active') ? 'active' : 'acknowledged'} alerts ✓
                   </div>
                 ) : (
                   <ScrollArea className="h-[200px]">
                     <div className="space-y-2 pr-4">
-                      {activeAlerts.slice(0, 10).map((alert, idx) => (
+                      {(alertsTab==='active' ? activeAlerts : acknowledgedAlerts).slice(0, 10).map((alert, idx) => (
                         <div key={idx} className="p-2 bg-orange-50 rounded border-l-2 border-l-orange-500 text-xs">
                           <p className="font-semibold text-slate-900">{alert.type || 'Alert'}</p>
                           <p className="text-slate-600">{alert.message}</p>
@@ -631,11 +662,7 @@ export default function DoctorDashboard() {
                   <Bed className="h-5 w-5" />
                   Ward Status Overview
                 </CardTitle>
-                <Link to="/ward-management">
-                  <Button variant="ghost" size="sm" className="gap-1">
-                    Manage Wards <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </Link>
+                {/* Manage Wards is restricted to Office dashboard */}
               </div>
             </CardHeader>
             <CardContent>
@@ -646,7 +673,12 @@ export default function DoctorDashboard() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {wards.map(ward => (
+                  {wards.map(ward => {
+                    const occ = wardOccupancy.get(ward.id) || 0;
+                    const total = ward.total_beds || 0;
+                    const available = Math.max(total - occ, 0);
+                    const ratio = total > 0 ? (occ / total) : 0;
+                    return (
                     <div key={ward.id} className="p-4 border border-slate-200 rounded-lg">
                       <div className="flex items-start justify-between mb-3">
                         <div>
@@ -659,30 +691,24 @@ export default function DoctorDashboard() {
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-600">Occupancy</span>
                           <span className="font-semibold text-slate-900">
-                            {ward.occupied_beds || 0}/{ward.total_beds || 0}
+                            {occ}/{total}
                           </span>
                         </div>
                         <div className="w-full bg-slate-200 rounded-full h-2">
                           <div
                             className={`h-2 rounded-full transition ${
-                              (ward.occupied_beds || 0) >= (ward.total_beds || 1) * 0.8
-                                ? 'bg-red-500'
-                                : (ward.occupied_beds || 0) >= (ward.total_beds || 1) * 0.5
-                                ? 'bg-yellow-500'
-                                : 'bg-green-500'
+                              ratio >= 0.8 ? 'bg-red-500' : ratio >= 0.5 ? 'bg-yellow-500' : 'bg-green-500'
                             }`}
-                            style={{
-                              width: `${(ward.total_beds || 1) > 0 ? ((ward.occupied_beds || 0) / (ward.total_beds || 1)) * 100 : 0}%`
-                            }}
+                            style={{ width: `${ratio * 100}%` }}
                           ></div>
                         </div>
                         <div className="flex justify-between text-xs text-slate-600 pt-1">
-                          <span>Available: {ward.available_beds || 0}</span>
+                          <span>Available: {available}</span>
                           <span>Staff: {ward.staff_count || 0}</span>
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );})}
                 </div>
               )}
             </CardContent>

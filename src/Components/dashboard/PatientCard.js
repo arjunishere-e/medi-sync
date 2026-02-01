@@ -25,7 +25,7 @@ const statusColors = {
   discharged: 'bg-slate-100 text-slate-700'
 };
 
-export default function PatientCard({ patient, latestVitals, alertCount = 0, onClick }) {
+export default function PatientCard({ patient, latestVitals, alertCount = 0, onClick, ctaAsButton = false }) {
   const daysAdmitted = patient.admission_date 
     ? differenceInDays(new Date(), new Date(patient.admission_date)) 
     : 0;
@@ -109,10 +109,17 @@ export default function PatientCard({ patient, latestVitals, alertCount = 0, onC
             <Calendar className="h-3 w-3" />
             <span>Day {daysAdmitted + 1}</span>
           </div>
-          <div className="flex items-center text-slate-600 font-medium">
-            View Details
-            <ChevronRight className="h-4 w-4" />
-          </div>
+          {ctaAsButton ? (
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
+              View Details
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          ) : (
+            <div className="flex items-center text-slate-600 font-medium">
+              View Details
+              <ChevronRight className="h-4 w-4" />
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

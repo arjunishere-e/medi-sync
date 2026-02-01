@@ -37,7 +37,7 @@ const severityConfig = {
   critical: { color: 'bg-red-100 text-red-700', pulse: true }
 };
 
-export default function AlertCard({ alert, onAcknowledge, onResolve, compact = false }) {
+export default function AlertCard({ alert, onAcknowledge, compact = false, className = '' }) {
   const typeConfig = alertTypeConfig[alert.alert_type] || alertTypeConfig.vital_anomaly;
   const severity = severityConfig[alert.severity] || severityConfig.medium;
   const Icon = typeConfig.icon;
@@ -69,22 +69,22 @@ export default function AlertCard({ alert, onAcknowledge, onResolve, compact = f
         alert.severity === 'high' ? 'border-l-orange-500' :
         alert.severity === 'medium' ? 'border-l-amber-500' :
         'border-l-slate-300'
-      } ${severity.pulse ? 'animate-pulse' : ''}`}>
-        <CardContent className={compact ? 'p-3' : 'p-4'}>
-          <div className="flex items-start gap-3">
-            <div className={`p-2 rounded-lg ${typeConfig.bg}`}>
-              <Icon className={`h-5 w-5 ${typeConfig.color}`} />
+      } ${severity.pulse ? 'animate-pulse' : ''} ${className}`}>
+        <CardContent className={(compact ? 'p-2.5' : 'p-4') + ' pr-4'}>
+          <div className={`flex items-start ${compact ? 'gap-2' : 'gap-3'}`}>
+            <div className={`${compact ? 'p-1.5' : 'p-2'} rounded-lg ${typeConfig.bg}`}>
+              <Icon className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} ${typeConfig.color}`} />
             </div>
             
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h4 className="font-semibold text-slate-900 truncate">{alert.title}</h4>
-                <Badge className={severity.color} variant="secondary">
+              <div className={`flex items-center gap-2 ${compact ? 'mb-0.5' : 'mb-1'}`}>
+                <h4 className={`font-semibold text-slate-900 break-words whitespace-normal ${compact ? 'text-sm' : 'text-base'}`}>{alert.title}</h4>
+                <Badge className={`${severity.color} ${compact ? 'text-[10px] px-1.5 py-0.5' : ''}`} variant="secondary">
                   {alert.severity}
                 </Badge>
               </div>
               
-              <p className="text-sm text-slate-600 mb-2">{alert.message}</p>
+              <p className={`${compact ? 'text-xs' : 'text-sm'} text-slate-600 ${compact ? 'mb-1' : 'mb-2'} break-words whitespace-pre-line leading-snug`}>{alert.message}</p>
               
               {alert.patient_name && (
                 <div className="flex items-center gap-1 text-xs text-slate-500 mb-2">
@@ -106,42 +106,28 @@ export default function AlertCard({ alert, onAcknowledge, onResolve, compact = f
                 </div>
               )}
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1 text-xs text-slate-400">
-                  <Clock className="h-3 w-3" />
+              <div className="flex items-center justify-between gap-2">
+                <div className={`flex items-center gap-1 ${compact ? 'text-[11px]' : 'text-xs'} text-slate-400`}>
+                  <Clock className={`${compact ? 'h-3 w-3' : 'h-3 w-3'}`} />
                   {formatDistanceToNow(safeToDate(alert.created_date), { addSuffix: true })}
                 </div>
                 
                 {alert.status === 'active' && (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 shrink-0">
                     <Button 
                       size="sm" 
                       variant="outline" 
-                      className="h-7 text-xs"
+                      className="h-7 text-xs whitespace-nowrap shrink-0"
                       onClick={() => onAcknowledge(alert)}
                     >
                       Acknowledge
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      className="h-7 text-xs"
-                      onClick={() => onResolve(alert)}
-                    >
-                      Resolve
                     </Button>
                   </div>
                 )}
                 
                 {alert.status === 'acknowledged' && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-amber-600">Acknowledged by {alert.acknowledged_by}</span>
-                    <Button 
-                      size="sm" 
-                      className="h-7 text-xs"
-                      onClick={() => onResolve(alert)}
-                    >
-                      Resolve
-                    </Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`${compact ? 'text-[11px]' : 'text-xs'} text-amber-600 whitespace-nowrap`}>Acknowledged by {alert.acknowledged_by || 'staff'}</span>
                   </div>
                 )}
                 

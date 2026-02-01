@@ -141,6 +141,7 @@ export default function OfficeDashboard() {
     return alerts.filter(a => a.patient_id === patientId && a.status === 'active').length;
   };
 
+  const [alertsTab, setAlertsTab] = useState('active');
   const activeAlerts = alerts.filter(a => a.status === 'active');
   const acknowledgedAlerts = alerts.filter(a => a.status === 'acknowledged');
   const criticalAlerts = activeAlerts.filter(a => a.severity === 'critical' || a.severity === 'high');
@@ -156,6 +157,18 @@ export default function OfficeDashboard() {
   const criticalPatients = patients.filter(p => p.status === 'critical');
   const totalBeds = wards.reduce((sum, w) => sum + (w.total_beds || 0), 0);
   const occupiedBeds = wards.reduce((sum, w) => sum + (w.occupied_beds || 0), 0);
+
+  // Compute ward occupancy from current patients (exclude discharged)
+  const wardOccupancy = useMemo(() => {
+    const map = new Map();
+    wards.forEach(w => map.set(w.id, 0));
+    patients.forEach(p => {
+      if (p.ward_id && p.status !== 'discharged') {
+        map.set(p.ward_id, (map.get(p.ward_id) || 0) + 1);
+      }
+    });
+    return map;
+  }, [patients, wards]);
   
   // Count active staff from today's schedule
   const today = new Date().toISOString().split('T')[0];
@@ -366,6 +379,7 @@ export default function OfficeDashboard() {
                           patient={patient}
                           latestVitals={getLatestVitals(patient.id)}
                           alertCount={getAlertCount(patient.id)}
+                          ctaAsButton
                         />
                       </Link>
                     ))}
@@ -384,11 +398,23 @@ export default function OfficeDashboard() {
                     <Bell className="h-5 w-5" />
                     Alerts
                   </CardTitle>
-                  {criticalAlerts.length > 0 && (
-                    <Badge variant="destructive" className="animate-pulse">
-                      {criticalPatientCount} Critical
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-md border border-slate-200 p-1 bg-white">
+                      <button
+                        className={`px-2 py-1 text-xs rounded ${alertsTab==='active' ? 'bg-slate-900 text-white' : 'text-slate-700'}`}
+                        onClick={() => setAlertsTab('active')}
+                      >Active ({activeAlerts.length})</button>
+                      <button
+                        className={`px-2 py-1 text-xs rounded ${alertsTab==='ack' ? 'bg-slate-900 text-white' : 'text-slate-700'}`}
+                        onClick={() => setAlertsTab('ack')}
+                      >Acknowledged ({acknowledgedAlerts.length})</button>
+                    </div>
+                    {criticalAlerts.length > 0 && (
+                      <Badge variant="destructive" className="animate-pulse">
+                        {criticalPatientCount} Critical
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col">
@@ -396,17 +422,17 @@ export default function OfficeDashboard() {
                   <div className="flex items-center justify-center py-8">
                     <RefreshCw className="h-6 w-6 animate-spin text-slate-300" />
                   </div>
-                ) : activeAlerts.length === 0 ? (
+                ) : (alertsTab === 'active' ? activeAlerts : acknowledgedAlerts).length === 0 ? (
                   <div className="text-center py-8 flex flex-col items-center justify-center flex-1">
                     <AlertTriangle className="h-10 w-10 text-slate-300 mb-2" />
-                    <p className="text-slate-500">No active alerts</p>
+                    <p className="text-slate-500">No {(alertsTab==='active') ? 'active' : 'acknowledged'} alerts</p>
                     <p className="text-xs text-slate-400 mt-1">All systems healthy</p>
                   </div>
                 ) : (
                   <ScrollArea className="pr-4 flex-1">
                     <div className="space-y-2">
-                      {/* Critical Alerts First - Group by patient, show most recent */}
-                      {criticalAlerts.length > 0 && (
+                      {/* Critical Alerts First for Active tab */}
+                      {alertsTab==='active' && criticalAlerts.length > 0 && (
                         <div className="mb-3">
                           <div className="text-xs font-bold text-red-600 uppercase mb-2 flex items-center gap-1">
                             <AlertTriangle className="h-3 w-3" />
@@ -425,8 +451,8 @@ export default function OfficeDashboard() {
                                   key={mostRecentAlert.id}
                                   alert={mostRecentAlert}
                                   onAcknowledge={handleAcknowledge}
-                                  onResolve={handleResolve}
                                   compact
+                                  className="mr-2"
                                 />
                               );
                             })}
@@ -434,22 +460,26 @@ export default function OfficeDashboard() {
                         </div>
                       )}
                       
-                      {/* Other Active Alerts */}
-                      {activeAlerts.filter(a => a.severity !== 'critical' && a.severity !== 'high').length > 0 && (
+                      {/* Other Alerts list (Active or Acknowledged) */}
+                      {(alertsTab==='active' 
+                        ? activeAlerts.filter(a => a.severity !== 'critical' && a.severity !== 'high')
+                        : acknowledgedAlerts).length > 0 && (
                         <div>
-                          {criticalAlerts.length > 0 && (
+                          {alertsTab==='active' && criticalAlerts.length > 0 && (
                             <div className="text-xs font-bold text-slate-500 uppercase mb-2">
                               Other Alerts
                             </div>
                           )}
                           <div className="space-y-2">
-                            {activeAlerts.filter(a => a.severity !== 'critical' && a.severity !== 'high').map(alert => (
+                            {(alertsTab==='active' 
+                              ? activeAlerts.filter(a => a.severity !== 'critical' && a.severity !== 'high')
+                              : acknowledgedAlerts).map(alert => (
                               <AlertCard
                                 key={alert.id}
                                 alert={alert}
                                 onAcknowledge={handleAcknowledge}
-                                onResolve={handleResolve}
                                 compact
+                                className="mr-2"
                               />
                             ))}
                           </div>
@@ -492,7 +522,12 @@ export default function OfficeDashboard() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {wards.map(ward => (
+                  {wards.map(ward => {
+                    const occ = wardOccupancy.get(ward.id) || 0;
+                    const total = ward.total_beds || 0;
+                    const available = Math.max(total - occ, 0);
+                    const ratio = total > 0 ? (occ / total) : 0;
+                    return (
                     <div key={ward.id} className="p-4 border border-slate-200 rounded-lg">
                       <div className="flex items-start justify-between mb-3">
                         <div>
@@ -505,30 +540,24 @@ export default function OfficeDashboard() {
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-600">Occupancy</span>
                           <span className="font-semibold text-slate-900">
-                            {ward.occupied_beds || 0}/{ward.total_beds || 0}
+                            {occ}/{total}
                           </span>
                         </div>
                         <div className="w-full bg-slate-200 rounded-full h-2">
                           <div
                             className={`h-2 rounded-full transition ${
-                              (ward.occupied_beds || 0) >= (ward.total_beds || 1) * 0.8
-                                ? 'bg-red-500'
-                                : (ward.occupied_beds || 0) >= (ward.total_beds || 1) * 0.5
-                                ? 'bg-yellow-500'
-                                : 'bg-green-500'
+                              ratio >= 0.8 ? 'bg-red-500' : ratio >= 0.5 ? 'bg-yellow-500' : 'bg-green-500'
                             }`}
-                            style={{
-                              width: `${(ward.total_beds || 1) > 0 ? ((ward.occupied_beds || 0) / (ward.total_beds || 1)) * 100 : 0}%`
-                            }}
+                            style={{ width: `${ratio * 100}%` }}
                           ></div>
                         </div>
                         <div className="flex justify-between text-xs text-slate-600 pt-1">
-                          <span>Available: {ward.available_beds || 0}</span>
+                          <span>Available: {available}</span>
                           <span>Staff: {ward.staff_count || 0}</span>
                         </div>
                       </div>
                     </div>
-                  ))}
+                  );})}
                 </div>
               )}
             </CardContent>
