@@ -180,17 +180,19 @@ export default function Navigation() {
             })}
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            <Link to="/alerts">
-              <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
-                <Bell className="h-4 w-4" />
-                <span className="hidden sm:inline">Alerts</span>
-                {criticalCount > 0 && (
-                  <Badge variant="destructive" className="ml-0 sm:ml-1 animate-pulse">
-                    {criticalCount}
-                  </Badge>
-                )}
-              </Button>
-            </Link>
+            {user?.role !== 'patient' && (
+              <Link to="/alerts">
+                <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
+                  <Bell className="h-4 w-4" />
+                  <span className="hidden sm:inline">Alerts</span>
+                  {criticalCount > 0 && (
+                    <Badge variant="destructive" className="ml-0 sm:ml-1 animate-pulse">
+                      {criticalCount}
+                    </Badge>
+                  )}
+                </Button>
+              </Link>
+            )}
 
             {/* Office: Appointments Notification */}
             {user?.role === 'office' && (
