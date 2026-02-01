@@ -183,6 +183,29 @@ export default function PatientDashboard() {
   const activeMedicines = medicines.filter(m => m.status !== 'completed').slice(0, 5);
   const myAlerts = alerts.slice(0, 5);
 
+  // Appointment history for this patient
+  const { data: appointments = [], isLoading: appointmentsLoading } = useQuery({
+    queryKey: ['my-appointments', user?.patient_doc_id, user?.file_number],
+    queryFn: async () => {
+      try {
+        if (user?.patient_doc_id) {
+          const byId = await firebaseClient.appointments.getByPatient(user.patient_doc_id);
+          if (Array.isArray(byId) && byId.length > 0) return byId;
+        }
+        if (user?.file_number) {
+          const byFile = await firebaseClient.appointments.getByPatientFileNumber(user.file_number);
+          if (Array.isArray(byFile)) return byFile;
+        }
+        return [];
+      } catch (e) {
+        console.error('Error fetching appointments:', e);
+        return [];
+      }
+    },
+    enabled: !!(user?.patient_doc_id || user?.file_number),
+    staleTime: 0,
+  });
+
   if (vitalsLoading && medicinesLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
@@ -206,11 +229,6 @@ export default function PatientDashboard() {
             <p className="text-slate-500 mt-1">
               Welcome, {user?.name || 'Patient'}
             </p>
-            {/* Debug Info */}
-            <div className="mt-2 text-xs text-slate-400 bg-slate-50 p-2 rounded font-mono">
-              <div>Patient Doc ID: {patientRecord?.id || 'Loading...'}</div>
-              <div>User File #: {user?.file_number || 'N/A'}</div>
-            </div>
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <Button 
@@ -261,7 +279,18 @@ export default function PatientDashboard() {
                       <div className="flex-1">
                         <p className="font-bold text-lg text-slate-900">{medicine.name}</p>
                         <p className="text-xs text-slate-500 mt-1">
-                          Prescribed: {medicine.prescribed_date ? new Date(medicine.prescribed_date).toLocaleDateString() : 'Recently'}
+                          Prescribed: {
+                            (() => {
+                              const d = medicine?.prescribed_date;
+                              if (!d) return 'Recently';
+                              try {
+                                const dt = typeof d?.toDate === 'function' ? d.toDate() : new Date(d);
+                                return isNaN(dt) ? 'Recently' : dt.toLocaleDateString();
+                              } catch {
+                                return 'Recently';
+                              }
+                            })()
+                          }
                         </p>
                       </div>
                       <Badge className="bg-green-100 text-green-800">Active</Badge>
@@ -350,6 +379,48 @@ export default function PatientDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Appointment History */}
+            <Card>
+              <CardHeader className="pb-3 bg-gradient-to-r from-indigo-50 to-blue-50">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-blue-600" />
+                    Appointment History
+                  </CardTitle>
+                  <Badge>{appointments.length}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {appointmentsLoading ? (
+                  <div className="flex justify-center py-6">
+                    <RefreshCw className="h-5 w-5 animate-spin text-slate-400" />
+                  </div>
+                ) : appointments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Calendar className="h-10 w-10 mx-auto text-slate-300 mb-2" />
+                    <p className="text-slate-500">No appointments booked yet</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-200">
+                    {appointments.map((apt) => (
+                      <div key={apt.id} className="py-3 flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="font-semibold text-slate-900">
+                            {apt.doctor_name} • {apt.doctor_specialty}
+                          </p>
+                          <p className="text-xs text-slate-600 mt-1">
+                            {apt.appointment_date} • {apt.appointment_time} (Token #{apt.token_number})
+                          </p>
+                        </div>
+                        <Badge className={`${apt.status === 'booked' ? 'bg-blue-600' : apt.status === 'completed' ? 'bg-green-600' : 'bg-slate-400'} text-white`}>
+                          {apt.status || 'booked'}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Recent Lab Reports */}
             <Card>

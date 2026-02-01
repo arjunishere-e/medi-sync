@@ -123,7 +123,7 @@ export default function BookAppointment() {
         patient_contact: '',
         doctor_id: selectedDoctor.id,
         doctor_name: selectedDoctor.name,
-        doctor_specialty: selectedDoctor.specialty || 'General',
+        doctor_specialty: selectedDoctor.specialty || selectedDoctor.specialization || 'General',
         appointment_date: selectedDate,
         appointment_time: selectedTime,
         appointment_end_time: format(endTime, 'HH:mm'),
@@ -381,7 +381,7 @@ For cancellations, please notify 24 hours in advance.
                     }`}
                   >
                     <p className="font-semibold text-slate-900">{doctor.name}</p>
-                    <p className="text-sm text-slate-600">{doctor.specialty || 'General Medicine'}</p>
+                    <p className="text-sm text-slate-600">{doctor.specialty || doctor.specialization || doctor.speciality || 'General Medicine'}</p>
                     {selectedDoctor?.id === doctor.id && (
                       <Badge className="mt-2 bg-blue-600">Selected</Badge>
                     )}
@@ -439,15 +439,22 @@ For cancellations, please notify 24 hours in advance.
                       {availableTimeSlots.map(slot => (
                         <button
                           key={slot.time}
-                          onClick={() => slot.isAvailable && setSelectedTime(slot.time)}
-                          disabled={!slot.isAvailable}
+                          onClick={() => {
+                            if (!slot.isAvailable) {
+                              alert('This slot is already booked. Please choose a different time.');
+                              return;
+                            }
+                            setSelectedTime(slot.time);
+                          }}
+                          aria-disabled={!slot.isAvailable}
                           className={`p-3 rounded-lg border-2 font-semibold transition-all ${
                             !slot.isAvailable
-                              ? 'border-red-300 bg-red-50 text-red-600 cursor-not-allowed opacity-50'
+                              ? 'border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed'
                               : selectedTime === slot.time
                               ? 'border-green-500 bg-green-50 text-green-900'
                               : 'border-slate-300 bg-white hover:border-green-300 text-slate-900'
                           }`}
+                          title={!slot.isAvailable ? 'Booked slot' : 'Select time'}
                         >
                           {slot.time}
                         </button>

@@ -508,16 +508,19 @@ export const firebaseClient = {
 
     async list() {
       try {
-        const q = query(
-          collection(db, 'appointments'),
-          orderBy('appointment_date', 'asc'),
-          orderBy('appointment_time', 'asc')
-        );
+        // Avoid composite index requirement by fetching without orderBy
+        const q = query(collection(db, 'appointments'));
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Sort client-side by date then time ascending
+        return results.sort((a, b) => {
+          const da = new Date(`${a.appointment_date}T${a.appointment_time || '00:00'}`);
+          const db_ = new Date(`${b.appointment_date}T${b.appointment_time || '00:00'}`);
+          return da - db_;
+        });
       } catch (error) {
         console.error('Error fetching appointments:', error);
-        throw error;
+        return [];
       }
     },
 
@@ -543,16 +546,43 @@ export const firebaseClient = {
 
     async getByPatient(patientId) {
       try {
+        // Avoid Firestore composite index requirement by not ordering in query
         const q = query(
           collection(db, 'appointments'),
-          where('patient_id', '==', patientId),
-          orderBy('appointment_date', 'desc')
+          where('patient_id', '==', patientId)
         );
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Sort client-side by date (desc) then time (desc)
+        return results.sort((a, b) => {
+          const da = new Date(`${a.appointment_date}T${a.appointment_time || '00:00'}`);
+          const db_ = new Date(`${b.appointment_date}T${b.appointment_time || '00:00'}`);
+          return db_ - da;
+        });
       } catch (error) {
         console.error('Error fetching patient appointments:', error);
         throw error;
+      }
+    },
+
+    async getByPatientFileNumber(fileNumber) {
+      try {
+        // Avoid Firestore composite index requirement by not ordering in query
+        const q = query(
+          collection(db, 'appointments'),
+          where('patient_file_number', '==', fileNumber)
+        );
+        const snapshot = await getDocs(q);
+        const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Sort client-side by date (desc) then time (desc)
+        return results.sort((a, b) => {
+          const da = new Date(`${a.appointment_date}T${a.appointment_time || '00:00'}`);
+          const db_ = new Date(`${b.appointment_date}T${b.appointment_time || '00:00'}`);
+          return db_ - da;
+        });
+      } catch (error) {
+        console.error('Error fetching appointments by file number:', error);
+        return [];
       }
     },
 

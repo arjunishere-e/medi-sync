@@ -47,6 +47,17 @@ export const AuthProvider = ({ children }) => {
 
   // Listen to auth state changes
   useEffect(() => {
+    // Hydrate from localStorage first so refresh doesn't log out file-number patients
+    const stored = localStorage.getItem('medisync_user');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.id) {
+          setUser(parsed);
+        }
+      } catch {}
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         // Fetch user profile from Firestore
@@ -61,6 +72,12 @@ export const AuthProvider = ({ children }) => {
               email: firebaseUser.email,
               ...userData,
             });
+            // Persist
+            localStorage.setItem('medisync_user', JSON.stringify({
+              id: firebaseUser.uid,
+              email: firebaseUser.email,
+              ...userData,
+            }));
 
             // If patient, ensure patient record exists
             if (userData.role === 'patient') {
@@ -74,6 +91,12 @@ export const AuthProvider = ({ children }) => {
               name: firebaseUser.displayName || 'User',
               role: 'patient',
             });
+            localStorage.setItem('medisync_user', JSON.stringify({
+              id: firebaseUser.uid,
+              email: firebaseUser.email,
+              name: firebaseUser.displayName || 'User',
+              role: 'patient',
+            }));
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
@@ -83,9 +106,30 @@ export const AuthProvider = ({ children }) => {
             name: firebaseUser.displayName || 'User',
             role: 'patient',
           });
+          localStorage.setItem('medisync_user', JSON.stringify({
+            id: firebaseUser.uid,
+            email: firebaseUser.email,
+            name: firebaseUser.displayName || 'User',
+            role: 'patient',
+          }));
         }
       } else {
-        setUser(null);
+        // For file-number based patients, keep the locally stored session
+        const storedUser = localStorage.getItem('medisync_user');
+        if (storedUser) {
+          try {
+            const parsed = JSON.parse(storedUser);
+            if (parsed && parsed.role === 'patient') {
+              setUser(parsed);
+            } else {
+              setUser(null);
+            }
+          } catch {
+            setUser(null);
+          }
+        } else {
+          setUser(null);
+        }
       }
       setLoading(false);
     });
@@ -109,14 +153,16 @@ export const AuthProvider = ({ children }) => {
         
         // For patients, file_number is the login identifier - no password check needed
         // Set the user based on the patient record
-        setUser({
+        const patientUser = {
           id: patientDoc.id,
           email: patientData.email || '',
           name: patientData.full_name || 'Patient',
           role: 'patient',
           file_number: patientData.file_number,
           patient_doc_id: patientDoc.id
-        });
+        };
+        setUser(patientUser);
+        localStorage.setItem('medisync_user', JSON.stringify(patientUser));
         
         return { user: { uid: patientDoc.id } };
       } else {
@@ -133,6 +179,13 @@ export const AuthProvider = ({ children }) => {
             await signOut(auth);
             throw new Error(`This account is registered as a ${userData.role}, not a ${role}`);
           }
+          // Persist for non-patient roles as well
+          const authUser = {
+            id: result.user.uid,
+            email: result.user.email,
+            ...userData,
+          };
+          localStorage.setItem('medisync_user', JSON.stringify(authUser));
         }
         
         return result.user;
@@ -214,6 +267,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await signOut(auth);
       setUser(null);
+      localStorage.removeItem('medisync_user');
     } catch (error) {
       throw new Error(error.message);
     }
