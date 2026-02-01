@@ -106,10 +106,13 @@ export default function BookAppointment() {
     return slots;
   }, [selectedDate, selectedDoctor, allAppointments]);
 
-  // Get next available token number for selected date
+  // Get next available token number for selected date and doctor
   const getNextTokenNumber = (date) => {
+    if (!date || !selectedDoctor) return 1;
     const appointmentsOnDate = allAppointments.filter(
-      apt => apt.appointment_date === date && apt.status !== 'cancelled'
+      apt => apt.appointment_date === date && 
+             apt.doctor_id === selectedDoctor.id && 
+             apt.status !== 'cancelled'
     );
     return appointmentsOnDate.length + 1;
   };

@@ -110,6 +110,29 @@ export default function DoctorDashboard() {
     staleTime: 30 * 1000, // Refresh every 30 seconds
   });
 
+  // Calculate correct token number for each appointment based on date and doctor
+  const getTokenNumberForAppointment = (appointment) => {
+    if (!appointment) return 0;
+    // Filter appointments for the same date and doctor, excluding cancelled ones
+    const appointmentsOnSameDate = appointments.filter(apt => 
+      apt.appointment_date === appointment.appointment_date && 
+      apt.doctor_id === appointment.doctor_id &&
+      apt.status !== 'cancelled'
+    );
+    // Sort by time to assign sequential token numbers
+    const sortedAppointments = appointmentsOnSameDate.sort((a, b) => {
+      const timeA = a.appointment_time || '00:00';
+      const timeB = b.appointment_time || '00:00';
+      return timeA.localeCompare(timeB);
+    });
+    // Find the index of the current appointment
+    const index = sortedAppointments.findIndex(apt => 
+      apt.id === appointment.id || 
+      (apt.appointment_time === appointment.appointment_time && apt.patient_id === appointment.patient_id)
+    );
+    return index + 1;
+  };
+
   // Mutation to prescribe medicine
   const prescribeMedicineMutation = useMutation({
     mutationFn: async (medicineData) => {
@@ -631,7 +654,7 @@ export default function DoctorDashboard() {
                                 <Badge className={`text-xs font-bold ${
                                   appointment.status === 'completed' ? 'bg-green-600' : 'bg-blue-600'
                                 }`}>
-                                  #{appointment.token_number}
+                                  #{getTokenNumberForAppointment(appointment)}
                                 </Badge>
                               </div>
                               <p className="text-xs text-slate-600 mt-1">File: {appointment.patient_file_number}</p>

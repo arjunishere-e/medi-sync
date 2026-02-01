@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '../api/base44Client';
 import { firebaseClient } from '../api/firebaseClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from "../Components/ui/card";
 import { Button } from "../Components/ui/button";
 import { Badge } from "../Components/ui/badge";
@@ -28,21 +29,9 @@ import VoiceAssistant from '../Components/voice/VoiceAssistant.js';
 
 export default function Dashboard() {
   console.log('Dashboard component rendering...');
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [showActiveStaff, setShowActiveStaff] = useState(false);
   const queryClient = useQueryClient();
-
-  useEffect(() => {
-    console.log('Dashboard useEffect running...');
-    base44.auth.me().then(userData => {
-      console.log('User data:', userData);
-      setUser(userData);
-    }).catch(error => {
-      console.error('Error loading user:', error);
-      // Set a default user to prevent blank screen
-      setUser({ full_name: 'Healthcare Professional' });
-    });
-  }, []);
 
   const { data: patientsData = [], isLoading: patientsLoading, error: patientsError } = useQuery({
     queryKey: ['patients'],
@@ -133,18 +122,18 @@ export default function Dashboard() {
     return alerts.filter(a => a.patient_id === patientId && a.status === 'active').length;
   };
 
-  // Patient status alerts: alerts tied to a patient
-  // For nurses, explicitly exclude appointment-related notifications
+  // Patient status alerts only; nurses only see critical/high severity patient status alerts
   const patientStatusAlerts = useMemo(() => {
     const base = alerts.filter(a => !!a.patient_id);
-    // Hide appointment notifications on nurse dashboard
     if (user?.role === 'nurse') {
       return base.filter(a => {
         const type = (a.alert_type || '').toString().toLowerCase();
         const text = `${a.title || ''} ${a.message || ''}`.toLowerCase();
         const isAppointmentType = ['appointment', 'appointment_confirmed', 'booking', 'appointment_booked'].includes(type);
         const mentionsAppointment = text.includes('appointment');
-        return !(isAppointmentType || mentionsAppointment);
+        const severity = (a.severity || '').toLowerCase();
+        const isCritical = severity === 'critical' || severity === 'high';
+        return !(isAppointmentType || mentionsAppointment) && isCritical;
       });
     }
     return base;
@@ -408,7 +397,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Bell className="h-5 w-5" />
-                    Alerts
+                    {user?.role === 'nurse' ? 'Critical Patient Alerts' : 'Alerts'}
                   </CardTitle>
                   <div className="flex items-center gap-2">
                     <div className="rounded-md border border-slate-200 p-1 bg-white">
@@ -437,8 +426,8 @@ export default function Dashboard() {
                 ) : (alertsTab === 'active' ? activeAlerts : acknowledgedAlerts).length === 0 ? (
                   <div className="text-center py-8 flex flex-col items-center justify-center flex-1">
                     <AlertTriangle className="h-10 w-10 text-slate-300 mb-2" />
-                    <p className="text-slate-500">No {(alertsTab==='active') ? 'active' : 'acknowledged'} alerts</p>
-                    <p className="text-xs text-slate-400 mt-1">All systems healthy</p>
+                    <p className="text-slate-500">No {(alertsTab==='active') ? 'active' : 'acknowledged'} {user?.role === 'nurse' ? 'critical ' : ''}alerts</p>
+                    <p className="text-xs text-slate-400 mt-1">{user?.role === 'nurse' ? 'No critical patients at this time' : 'All systems healthy'}</p>
                   </div>
                 ) : (
                   <ScrollArea className="pr-4 flex-1">

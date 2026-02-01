@@ -45,16 +45,18 @@ export default function AlertsPage() {
     });
   };
 
-  // Patient status alerts only; nurses should not see appointment notifications
+  // Patient status alerts only; nurses and office see critical/high severity patient status alerts
   const patientStatusAlerts = useMemo(() => {
     const base = alerts.filter(a => !!a.patient_id);
-    if (user?.role === 'nurse') {
+    if (user?.role === 'nurse' || user?.role === 'office') {
       return base.filter(a => {
         const type = (a.alert_type || '').toString().toLowerCase();
         const text = `${a.title || ''} ${a.message || ''}`.toLowerCase();
         const isAppointmentType = ['appointment', 'appointment_confirmed', 'booking', 'appointment_booked'].includes(type);
         const mentionsAppointment = text.includes('appointment');
-        return !(isAppointmentType || mentionsAppointment);
+        const severity = (a.severity || '').toLowerCase();
+        const isCritical = severity === 'critical' || severity === 'high';
+        return !(isAppointmentType || mentionsAppointment) && isCritical;
       });
     }
     return base;

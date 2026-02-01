@@ -220,21 +220,31 @@ export default function Navigation() {
                         <div className="px-4 py-3 text-sm text-gray-500">No upcoming appointments</div>
                       ) : (
                         appointmentsByDoctor.map(group => (
-                          <div key={group.doctorName} className="border-b border-gray-100">
-                            <div className="px-4 py-2 bg-gray-50 flex items-center justify-between">
-                              <div className="text-sm font-semibold text-gray-800">{group.doctorName}</div>
-                              <Badge variant="outline">{group.items.length}</Badge>
+                          <div key={group.doctorName} className="border-b border-gray-200 last:border-b-0">
+                            <div className="px-4 py-2.5 bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-500 flex items-center justify-between sticky top-0 z-10">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                                  {group.doctorName[0]?.toUpperCase()}
+                                </div>
+                                <div className="text-sm font-bold text-blue-900 uppercase tracking-wide">Dr. {group.doctorName}</div>
+                              </div>
+                              <Badge variant="default" className="bg-blue-600 text-white">{group.items.length}</Badge>
                             </div>
-                            <ul className="divide-y divide-gray-100">
+                            <ul className="divide-y divide-gray-100 bg-white">
                               {group.items.map(item => (
-                                <li key={item.id} className="px-4 py-2 text-sm">
+                                <li key={item.id} className="px-4 py-2.5 pl-8 text-sm hover:bg-gray-50 transition-colors">
                                   <div className="flex items-center justify-between">
-                                    <span className="font-medium text-gray-900">{item.patient_name}</span>
-                                    <span className="text-gray-700">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 text-xs font-medium">
+                                        {item.patient_name?.[0]?.toUpperCase()}
+                                      </div>
+                                      <span className="font-medium text-gray-900">{item.patient_name}</span>
+                                    </div>
+                                    <span className="text-sm font-semibold text-blue-700">
                                       {item.appointment_time || '—'}
                                     </span>
                                   </div>
-                                  <div className="text-xs text-gray-500">
+                                  <div className="text-xs text-gray-500 ml-8 mt-0.5">
                                     {item.appointment_date}
                                   </div>
                                 </li>

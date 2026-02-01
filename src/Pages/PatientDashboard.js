@@ -206,6 +206,29 @@ export default function PatientDashboard() {
     staleTime: 0,
   });
 
+  // Calculate correct token number for each appointment based on date and doctor
+  const getTokenNumberForAppointment = (appointment) => {
+    if (!appointment) return 0;
+    // Filter appointments for the same date and doctor, excluding cancelled ones
+    const appointmentsOnSameDate = appointments.filter(apt => 
+      apt.appointment_date === appointment.appointment_date && 
+      apt.doctor_id === appointment.doctor_id &&
+      apt.status !== 'cancelled'
+    );
+    // Sort by time to assign sequential token numbers
+    const sortedAppointments = appointmentsOnSameDate.sort((a, b) => {
+      const timeA = a.appointment_time || '00:00';
+      const timeB = b.appointment_time || '00:00';
+      return timeA.localeCompare(timeB);
+    });
+    // Find the index of the current appointment
+    const index = sortedAppointments.findIndex(apt => 
+      apt.id === appointment.id || 
+      (apt.appointment_time === appointment.appointment_time && apt.patient_id === appointment.patient_id)
+    );
+    return index + 1;
+  };
+
   if (vitalsLoading && medicinesLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
@@ -409,7 +432,7 @@ export default function PatientDashboard() {
                             {apt.doctor_name} • {apt.doctor_specialty}
                           </p>
                           <p className="text-xs text-slate-600 mt-1">
-                            {apt.appointment_date} • {apt.appointment_time} (Token #{apt.token_number})
+                            {apt.appointment_date} • {apt.appointment_time} (Token #{getTokenNumberForAppointment(apt)})
                           </p>
                         </div>
                         <Badge className={`${apt.status === 'booked' ? 'bg-blue-600' : apt.status === 'completed' ? 'bg-green-600' : 'bg-slate-400'} text-white`}>

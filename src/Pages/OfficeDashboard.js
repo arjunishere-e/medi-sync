@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '../api/base44Client';
 import { firebaseClient } from '../api/firebaseClient';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from "../Components/ui/card";
 import { Button } from "../Components/ui/button";
 import { Badge } from "../Components/ui/badge";
@@ -27,21 +28,9 @@ import VoiceAssistant from '../Components/voice/VoiceAssistant.js';
 
 export default function OfficeDashboard() {
   console.log('OfficeDashboard component rendering...');
-  const [user, setUser] = useState(null);
+  const { user } = useAuth();
   const [showActiveStaff, setShowActiveStaff] = useState(false);
   const queryClient = useQueryClient();
-
-  useEffect(() => {
-    console.log('OfficeDashboard useEffect running...');
-    base44.auth.me().then(userData => {
-      console.log('User data:', userData);
-      setUser(userData);
-    }).catch(error => {
-      console.error('Error loading user:', error);
-      // Set a default user to prevent blank screen
-      setUser({ full_name: 'Office Staff' });
-    });
-  }, []);
 
   const { data: patientsData = [], isLoading: patientsLoading, error: patientsError } = useQuery({
     queryKey: ['patients'],
@@ -142,11 +131,20 @@ export default function OfficeDashboard() {
   };
 
   const [alertsTab, setAlertsTab] = useState('active');
-  // Patient status alerts only for dashboards
-  const patientStatusAlerts = useMemo(
-    () => alerts.filter(a => !!a.patient_id),
-    [alerts]
-  );
+  // Patient status alerts only; office sees critical/high severity patient status alerts
+  const patientStatusAlerts = useMemo(() => {
+    const base = alerts.filter(a => !!a.patient_id);
+    // Filter for critical/high severity only, exclude appointments
+    return base.filter(a => {
+      const type = (a.alert_type || '').toString().toLowerCase();
+      const text = `${a.title || ''} ${a.message || ''}`.toLowerCase();
+      const isAppointmentType = ['appointment', 'appointment_confirmed', 'booking', 'appointment_booked'].includes(type);
+      const mentionsAppointment = text.includes('appointment');
+      const severity = (a.severity || '').toLowerCase();
+      const isCritical = severity === 'critical' || severity === 'high';
+      return !(isAppointmentType || mentionsAppointment) && isCritical;
+    });
+  }, [alerts, user]);
   const activeAlerts = patientStatusAlerts.filter(a => a.status === 'active');
   const acknowledgedAlerts = patientStatusAlerts.filter(a => a.status === 'acknowledged');
   const criticalAlerts = activeAlerts.filter(a => a.severity === 'critical' || a.severity === 'high');
