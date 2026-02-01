@@ -42,12 +42,6 @@ export default function Login() {
       name: 'Office',
       description: 'Hospital Operations',
       icon: Briefcase
-    },
-    {
-      id: 'patient',
-      name: 'Patient',
-      description: 'Health Monitoring',
-      icon: UserCircle
     }
   ];
 
