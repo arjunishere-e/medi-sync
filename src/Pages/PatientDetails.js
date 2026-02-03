@@ -61,6 +61,13 @@ export default function PatientDetails() {
     queryFn: () => base44.entities.Ward.list(),
   });
 
+  // Fetch all doctors for referral editing
+  const { data: doctors = [] } = useQuery({
+    queryKey: ['doctors'],
+    queryFn: () => firebaseClient.users.getByRole('doctor'),
+    staleTime: 1000 * 60 * 5,
+  });
+
   // Fetch patient details
   const { data: patient, isLoading: patientLoading } = useQuery({
     queryKey: ['patient-detail', patientId],
@@ -466,6 +473,25 @@ export default function PatientDetails() {
                     </select>
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      Referring Doctor
+                    </label>
+                    <select
+                      value={patientData.referred_doctor_id || patientData.doctor_id || ''}
+                      onChange={(e) => setPatientData({...patientData, referred_doctor_id: e.target.value, doctor_id: e.target.value})}
+                      className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="">-- Select Referring Doctor --</option>
+                      {doctors.map(doctor => (
+                        <option key={doctor.id} value={doctor.id}>
+                          {doctor.name} - {doctor.specialty || 'General Medicine'}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-slate-500 mt-1">Change referring doctor if needed</p>
+                  </div>
+
                   <div className="md:col-span-2">
                     <label className="block text-sm font-semibold text-slate-700 mb-2">
                       Address
@@ -564,6 +590,21 @@ export default function PatientDetails() {
                     }`}>
                       {patient.status}
                     </Badge>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Stethoscope className="h-5 w-5 text-blue-600" />
+                  <div>
+                    <p className="text-sm text-slate-600">Referring Doctor</p>
+                    <p className="font-semibold text-slate-900">
+                      {doctors.find(d => d.id === (patient.referred_doctor_id || patient.doctor_id))?.name || 'Not Assigned'}
+                    </p>
+                    {doctors.find(d => d.id === (patient.referred_doctor_id || patient.doctor_id))?.specialty && (
+                      <p className="text-xs text-slate-500">
+                        {doctors.find(d => d.id === (patient.referred_doctor_id || patient.doctor_id))?.specialty}
+                      </p>
+                    )}
                   </div>
                 </div>
 

@@ -34,8 +34,21 @@ export default function Patients() {
   const [viewMode, setViewMode] = useState('grid');
 
   const { data: patients = [], isLoading } = useQuery({
-    queryKey: ['patients'],
-    queryFn: () => base44.entities.Patient.list('-created_date', 100)
+    queryKey: ['patients', user?.id, user?.role],
+    queryFn: async () => {
+      const allPatients = await base44.entities.Patient.list('-created_date', 100);
+      
+      // If user is a doctor, only return their referred patients
+      if (user?.role === 'doctor') {
+        return allPatients.filter(patient => 
+          patient.referred_doctor_id === user.id || patient.doctor_id === user.id
+        );
+      }
+      
+      // For office staff, nurses, and others, return all patients
+      return allPatients;
+    },
+    enabled: !!user
   });
 
   const { data: vitals = [] } = useQuery({

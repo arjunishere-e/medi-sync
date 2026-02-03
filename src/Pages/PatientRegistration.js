@@ -7,11 +7,14 @@ import { useAuth } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from "../Components/ui/card";
 import { Button } from "../Components/ui/button";
 import { UserPlus } from 'lucide-react';
+import OPTicket from '../Components/ui/OPTicket';
 
 export default function PatientRegistration() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const [showTicket, setShowTicket] = useState(false);
+  const [registeredPatient, setRegisteredPatient] = useState(null);
   const [formData, setFormData] = useState({
     file_number: '',
     full_name: '',
@@ -21,13 +24,22 @@ export default function PatientRegistration() {
     address: '',
     bed_number: '',
     ward_id: '',
-    status: 'stable'
+    status: 'stable',
+    referred_doctor_id: ''
   });
 
   // Fetch wards and available beds
   const { data: wards = [] } = useQuery({
     queryKey: ['wards'],
     queryFn: () => base44.entities.Ward.list(),
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10
+  });
+
+  // Fetch all doctors for referral selection
+  const { data: doctors = [], isLoading: doctorsLoading } = useQuery({
+    queryKey: ['doctors'],
+    queryFn: () => firebaseClient.users.getByRole('doctor'),
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10
   });
@@ -58,17 +70,24 @@ export default function PatientRegistration() {
 
   const registerPatientMutation = useMutation({
     mutationFn: async (patientData) => {
+      // Ensure referred_doctor_id is properly set
+      const doctorId = patientData.referred_doctor_id && patientData.referred_doctor_id !== '' 
+        ? patientData.referred_doctor_id 
+        : user?.id;
+      
       const patient = {
         ...patientData,
-        doctor_id: user?.id,
+        doctor_id: doctorId,
+        referred_doctor_id: doctorId,
         nurse_id: user?.role === 'nurse' ? user.id : null,
+        registered_by: user?.id,
         created_date: new Date().toISOString(),
         age: parseInt(patientData.age),
         bed_number: patientData.bed_number ? parseInt(patientData.bed_number) : null,
         bed_allocated_by: user?.role === 'nurse' ? user.id : null,
         bed_allocation_date: patientData.bed_number ? new Date().toISOString() : null
       };
-      console.log('📝 Registering patient to Firestore:', patient);
+      console.log('📝 Registering patient to Firestore with doctor_id:', doctorId, patient);
       return firebaseClient.patients.create(patient);
     },
     onSuccess: async (result) => {
@@ -77,6 +96,16 @@ export default function PatientRegistration() {
       queryClient.invalidateQueries({ queryKey: ['patients'] });
       queryClient.invalidateQueries({ queryKey: ['all-patients'] });
       queryClient.invalidateQueries({ queryKey: ['wards'] });
+      
+      // Store registered patient data with ID for the ticket
+      const patientWithId = {
+        ...formData,
+        id: result.id,
+        created_date: new Date().toISOString()
+      };
+      setRegisteredPatient(patientWithId);
+      setShowTicket(true);
+      
       // If status is critical, create an alert
       try {
         if (formData.status === 'critical') {
@@ -96,8 +125,6 @@ export default function PatientRegistration() {
       } catch (e) {
         console.error('Error creating critical alert on registration:', e);
       }
-      alert('Patient registered successfully!');
-      setTimeout(() => navigate('/'), 500);
     },
     onError: (error) => {
       console.error('Registration error:', error);
@@ -118,7 +145,32 @@ export default function PatientRegistration() {
       return;
     }
 
+    if (!formData.referred_doctor_id) {
+      alert('Please select a referring doctor for the patient');
+      return;
+    }
+
     registerPatientMutation.mutate(formData);
+  };
+
+  const handleCloseTicket = () => {
+    setShowTicket(false);
+    setRegisteredPatient(null);
+    // Reset form and navigate to dashboard
+    setFormData({
+      file_number: '',
+      full_name: '',
+      age: '',
+      gender: 'male',
+      contact_number: '',
+      address: '',
+      bed_number: '',
+      ward_id: '',
+      status: 'stable',
+      referred_doctor_id: ''
+    });
+    queryClient.invalidateQueries({ queryKey: ['next-file-number'] });
+    setTimeout(() => navigate('/'), 300);
   };
 
   return (
@@ -208,6 +260,30 @@ export default function PatientRegistration() {
                   />
                 </div>
 
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Referring Doctor *
+                  </label>
+                  <select
+                    required
+                    value={formData.referred_doctor_id}
+                    onChange={(e) => setFormData({...formData, referred_doctor_id: e.target.value})}
+                    className="w-full p-3 border border-slate-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="">-- Select Referring Doctor --</option>
+                    {doctorsLoading ? (
+                      <option disabled>Loading doctors...</option>
+                    ) : (
+                      doctors.map(doctor => (
+                        <option key={doctor.id} value={doctor.id}>
+                          {doctor.name} - {doctor.specialty || 'General Medicine'}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <p className="text-xs text-slate-500 mt-1">Select the doctor who will be treating this patient</p>
+                </div>
+
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     Ward (Bed Allocation)
@@ -289,6 +365,14 @@ export default function PatientRegistration() {
           </CardContent>
         </Card>
       </div>
+
+      {/* OP Ticket Modal */}
+      {showTicket && registeredPatient && (
+        <OPTicket 
+          patient={registeredPatient} 
+          onClose={handleCloseTicket}
+        />
+      )}
     </div>
   );
 }

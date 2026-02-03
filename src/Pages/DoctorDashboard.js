@@ -41,10 +41,22 @@ export default function DoctorDashboard() {
     queryKey: ['all-patients', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // Fetch ALL patients from Firestore (all self-registered patients)
+      // Fetch only patients referred to this specific doctor
       const result = await firebaseClient.patients.list('-created_date', 100);
-      console.log('DoctorDashboard - Fetched patients:', result);
-      return result;
+      console.log('DoctorDashboard - Fetched all patients:', result);
+      console.log('DoctorDashboard - Current doctor ID:', user.id);
+      
+      // Filter to show only patients referred to this doctor
+      const myPatients = result.filter(patient => {
+        const referredId = patient.referred_doctor_id || patient.doctor_id;
+        const isReferred = referredId === user.id;
+        console.log(`Patient ${patient.full_name}: referred_doctor_id=${patient.referred_doctor_id}, doctor_id=${patient.doctor_id}, user.id=${user.id}, matches=${isReferred}`);
+        return isReferred;
+      });
+      
+      console.log('DoctorDashboard - My referred patients count:', myPatients.length);
+      console.log('DoctorDashboard - My referred patients:', myPatients);
+      return myPatients;
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -54,16 +66,16 @@ export default function DoctorDashboard() {
     }
   });
 
-  // Deduplicate patients by email (or full_name as fallback)
+  // Deduplicate patients by ID (each patient should have unique ID from Firestore)
   const patients = useMemo(() => {
     const seen = new Set();
     return patientsData.filter(patient => {
-      const uniqueKey = patient.email || patient.full_name;
-      if (seen.has(uniqueKey)) {
-        console.log('Filtering duplicate patient:', patient.full_name);
+      if (!patient.id) return false; // Skip if no ID
+      if (seen.has(patient.id)) {
+        console.log('Filtering duplicate patient ID:', patient.id, patient.full_name);
         return false;
       }
-      seen.add(uniqueKey);
+      seen.add(patient.id);
       return true;
     });
   }, [patientsData]);
