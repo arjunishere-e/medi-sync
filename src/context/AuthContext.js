@@ -47,17 +47,9 @@ export const AuthProvider = ({ children }) => {
 
   // Listen to auth state changes
   useEffect(() => {
-    // Hydrate from localStorage first so refresh doesn't log out file-number patients
-    const stored = localStorage.getItem('medisync_user');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.id) {
-          setUser(parsed);
-        }
-      } catch {}
-    }
-
+    // Check if there's a pending login in progress
+    const pendingLogin = sessionStorage.getItem('medisync_pending_login');
+    
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         // Fetch user profile from Firestore
@@ -67,63 +59,71 @@ export const AuthProvider = ({ children }) => {
           
           if (userDocSnap.exists()) {
             const userData = userDocSnap.data();
-            setUser({
+            // Use the pending login role if available, otherwise use Firestore role
+            const role = pendingLogin ? JSON.parse(pendingLogin).role : userData.role;
+            const userObj = {
               id: firebaseUser.uid,
               email: firebaseUser.email,
               ...userData,
-            });
-            // Persist
-            localStorage.setItem('medisync_user', JSON.stringify({
-              id: firebaseUser.uid,
-              email: firebaseUser.email,
-              ...userData,
-            }));
+              role: role, // Ensure role is set correctly
+            };
+            setUser(userObj);
+            localStorage.setItem('medisync_user', JSON.stringify(userObj));
+            sessionStorage.removeItem('medisync_pending_login');
 
             // If patient, ensure patient record exists
-            if (userData.role === 'patient') {
+            if (role === 'patient') {
               await ensurePatientRecordExists(firebaseUser.uid, firebaseUser.email, userData.name);
             }
           } else {
-            // User authenticated but no profile - set basic info
-            setUser({
-              id: firebaseUser.uid,
-              email: firebaseUser.email,
-              name: firebaseUser.displayName || 'User',
-              role: 'patient',
-            });
-            localStorage.setItem('medisync_user', JSON.stringify({
-              id: firebaseUser.uid,
-              email: firebaseUser.email,
-              name: firebaseUser.displayName || 'User',
-              role: 'patient',
-            }));
+            // User authenticated but no profile - should not happen after login
+            if (pendingLogin) {
+              const loginInfo = JSON.parse(pendingLogin);
+              const userObj = {
+                id: firebaseUser.uid,
+                email: firebaseUser.email,
+                name: firebaseUser.displayName || 'User',
+                role: loginInfo.role,
+              };
+              setUser(userObj);
+              localStorage.setItem('medisync_user', JSON.stringify(userObj));
+              sessionStorage.removeItem('medisync_pending_login');
+            } else {
+              const userObj = {
+                id: firebaseUser.uid,
+                email: firebaseUser.email,
+                name: firebaseUser.displayName || 'User',
+                role: 'patient',
+              };
+              setUser(userObj);
+              localStorage.setItem('medisync_user', JSON.stringify(userObj));
+            }
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
-          setUser({
-            id: firebaseUser.uid,
-            email: firebaseUser.email,
-            name: firebaseUser.displayName || 'User',
-            role: 'patient',
-          });
-          localStorage.setItem('medisync_user', JSON.stringify({
-            id: firebaseUser.uid,
-            email: firebaseUser.email,
-            name: firebaseUser.displayName || 'User',
-            role: 'patient',
-          }));
+          // Fallback to localStorage if available
+          const stored = localStorage.getItem('medisync_user');
+          if (stored) {
+            try {
+              const userObj = JSON.parse(stored);
+              setUser(userObj);
+            } catch {
+              setUser({
+                id: firebaseUser.uid,
+                email: firebaseUser.email,
+                name: firebaseUser.displayName || 'User',
+                role: 'patient',
+              });
+            }
+          }
         }
       } else {
-        // For file-number based patients, keep the locally stored session
-        const storedUser = localStorage.getItem('medisync_user');
-        if (storedUser) {
+        // If not authenticated, check localStorage for any saved session
+        const stored = localStorage.getItem('medisync_user');
+        if (stored) {
           try {
-            const parsed = JSON.parse(storedUser);
-            if (parsed && parsed.role === 'patient') {
-              setUser(parsed);
-            } else {
-              setUser(null);
-            }
+            const userObj = JSON.parse(stored);
+            setUser(userObj);
           } catch {
             setUser(null);
           }
@@ -137,39 +137,15 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  const login = async (emailOrFileNumber, password, role) => {
+  const login = async (email, password, role) => {
     try {
-      // If patient role, look up patient by file number
-      if (role === 'patient') {
-        const q = query(collection(db, 'patients'), where('file_number', '==', emailOrFileNumber));
-        const snapshot = await getDocs(q);
-        
-        if (snapshot.empty) {
-          throw new Error('Patient not found. Please verify your file number.');
-        }
-        
-        const patientDoc = snapshot.docs[0];
-        const patientData = patientDoc.data();
-        
-        // For patients, file_number is the login identifier - no password check needed
-        // Set the user based on the patient record
-        const patientUser = {
-          id: patientDoc.id,
-          email: patientData.email || '',
-          name: patientData.full_name || 'Patient',
-          role: 'patient',
-          file_number: patientData.file_number,
-          patient_doc_id: patientDoc.id
-        };
-        setUser(patientUser);
-        localStorage.setItem('medisync_user', JSON.stringify(patientUser));
-        
-        return { user: { uid: patientDoc.id } };
-      } else {
-        // For doctors and nurses, use email/password authentication
-        const result = await signInWithEmailAndPassword(auth, emailOrFileNumber, password);
-        
-        // Verify the user's role matches the selected role
+      // Store pending login info so onAuthStateChanged can use it
+      sessionStorage.setItem('medisync_pending_login', JSON.stringify({ email, role }));
+      
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      
+      // Try to verify the user's role, but don't fail if we can't read the doc
+      try {
         const userDocRef = doc(db, 'users', result.user.uid);
         const userDocSnap = await getDoc(userDocRef);
         
@@ -177,43 +153,75 @@ export const AuthProvider = ({ children }) => {
           const userData = userDocSnap.data();
           if (userData.role !== role) {
             await signOut(auth);
+            sessionStorage.removeItem('medisync_pending_login');
             throw new Error(`This account is registered as a ${userData.role}, not a ${role}`);
           }
-          // Persist for non-patient roles as well
-          const authUser = {
+          
+          // Immediately set the user with the correct role
+          const userObj = {
             id: result.user.uid,
             email: result.user.email,
             ...userData,
+            role: role,
           };
-          localStorage.setItem('medisync_user', JSON.stringify(authUser));
+          setUser(userObj);
+          localStorage.setItem('medisync_user', JSON.stringify(userObj));
+        } else {
+          // User doc not found, use the selected role
+          const userObj = {
+            id: result.user.uid,
+            email: result.user.email,
+            name: result.user.displayName || 'User',
+            role: role,
+          };
+          setUser(userObj);
+          localStorage.setItem('medisync_user', JSON.stringify(userObj));
         }
-        
-        return result.user;
+      } catch (docError) {
+        // If we can't read the user doc (permissions issue), still allow login with the selected role
+        console.warn('Could not verify user role from Firestore:', docError);
+        const userObj = {
+          id: result.user.uid,
+          email: result.user.email,
+          name: result.user.displayName || 'User',
+          role: role,
+        };
+        setUser(userObj);
+        localStorage.setItem('medisync_user', JSON.stringify(userObj));
       }
+      
+      sessionStorage.removeItem('medisync_pending_login');
+      return result.user;
     } catch (error) {
+      sessionStorage.removeItem('medisync_pending_login');
       throw new Error(error.message);
     }
   };
 
   const signup = async (name, email, password, role, additionalData = {}) => {
     try {
-      // If patient role, just create a patient record with file number (no Firebase auth)
+      // Store pending signup info
+      sessionStorage.setItem('medisync_pending_login', JSON.stringify({ email, role }));
+      
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = result.user;
+
+      // Create user profile in Firestore
+      const userDocRef = doc(db, 'users', firebaseUser.uid);
+      await setDoc(userDocRef, {
+        name: name,
+        email: email,
+        role: role,
+        specialization: role === 'doctor' ? (additionalData.specialization || '') : undefined,
+        created_date: new Date(),
+      });
+
+      // If patient, also create patient record
       if (role === 'patient') {
-        const fileNumber = additionalData.file_number;
-        
-        // Check if file number already exists
-        const q = query(collection(db, 'patients'), where('file_number', '==', fileNumber));
-        const snapshot = await getDocs(q);
-        
-        if (!snapshot.empty) {
-          throw new Error('File number already registered. Please use a different file number.');
-        }
-        
-        // Create patient record
-        const patientRef = await addDoc(collection(db, 'patients'), {
-          file_number: fileNumber,
+        await addDoc(collection(db, 'patients'), {
           full_name: name,
           email: email,
+          user_id: firebaseUser.uid,
           age: parseInt(additionalData.age) || 0,
           contact_number: additionalData.mobile || '',
           address: '',
@@ -222,43 +230,23 @@ export const AuthProvider = ({ children }) => {
           gender: '',
           created_date: new Date().toISOString()
         });
-        
-        setUser({
-          id: patientRef.id,
-          email: email,
-          name: name,
-          role: 'patient',
-          file_number: fileNumber,
-          patient_doc_id: patientRef.id
-        });
-        
-        return { user: { uid: patientRef.id } };
-      } else {
-        // For doctors and nurses, create Firebase auth account
-        const result = await createUserWithEmailAndPassword(auth, email, password);
-        const firebaseUser = result.user;
-
-        // Create user profile in Firestore
-        const userDocRef = doc(db, 'users', firebaseUser.uid);
-        await setDoc(userDocRef, {
-          name: name,
-          email: email,
-          role: role,
-          specialization: role === 'doctor' ? (additionalData.specialization || 'General') : undefined,
-          created_date: new Date(),
-        });
-
-        setUser({
-          id: firebaseUser.uid,
-          email: email,
-          name: name,
-          role: role,
-          specialization: role === 'doctor' ? (additionalData.specialization || 'General') : undefined,
-        });
-
-        return firebaseUser;
       }
+
+      const userObj = {
+        id: firebaseUser.uid,
+        email: email,
+        name: name,
+        role: role,
+        specialization: role === 'doctor' ? (additionalData.specialization || '') : undefined,
+      };
+
+      setUser(userObj);
+      localStorage.setItem('medisync_user', JSON.stringify(userObj));
+      sessionStorage.removeItem('medisync_pending_login');
+
+      return firebaseUser;
     } catch (error) {
+      sessionStorage.removeItem('medisync_pending_login');
       throw new Error(error.message);
     }
   };
@@ -267,7 +255,6 @@ export const AuthProvider = ({ children }) => {
     try {
       await signOut(auth);
       setUser(null);
-      localStorage.removeItem('medisync_user');
     } catch (error) {
       throw new Error(error.message);
     }

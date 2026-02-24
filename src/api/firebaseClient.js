@@ -45,11 +45,15 @@ export const firebaseClient = {
         
         const snapshot = await getDocs(q);
         const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log('✅ Fetched from Firestore - patients:', results);
+        console.log('✅ Fetched from Firestore - patients:', results.length, 'records');
         return results;
       } catch (error) {
-        console.error('❌ Error fetching patients from Firestore:', error.message);
-        // Return empty array on error - never fall back to mock data
+        console.error('❌ Error fetching patients from Firestore:', error.message, error.code);
+        // If it's a permission error, log it clearly
+        if (error.code === 'permission-denied') {
+          console.error('🔐 PERMISSION DENIED: Firestore security rules may be blocking reads');
+        }
+        // Return empty array - the app should handle this gracefully
         return [];
       }
     },
@@ -90,6 +94,31 @@ export const firebaseClient = {
       } catch (error) {
         console.error('Error deleting patient:', error);
         throw error;
+      }
+    },
+
+    async getByDoctor(doctorId) {
+      try {
+        if (!doctorId) {
+          console.warn('No doctor ID provided - returning empty array');
+          return [];
+        }
+        
+        // Query patients where assigned_doctor_id matches
+        const q = query(
+          collection(db, 'patients'),
+          where('assigned_doctor_id', '==', doctorId)
+        );
+        const snapshot = await getDocs(q);
+        const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log(`✅ Fetched ${results.length} patients for doctor ${doctorId}`);
+        return results;
+      } catch (error) {
+        console.error('Error fetching patients by doctor:', error.message, error.code);
+        if (error.code === 'permission-denied') {
+          console.error('🔐 PERMISSION DENIED: Firestore security rules may be blocking reads');
+        }
+        return [];
       }
     },
 
@@ -146,10 +175,15 @@ export const firebaseClient = {
           );
         }
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('✅ Fetched from Firestore - alerts:', results.length, 'records');
+        return results;
       } catch (error) {
-        console.error('Error fetching alerts:', error);
-        throw error;
+        console.error('❌ Error fetching alerts:', error.message, error.code);
+        if (error.code === 'permission-denied') {
+          console.error('🔐 PERMISSION DENIED: Firestore security rules may be blocking reads');
+        }
+        return [];
       }
     },
 
@@ -211,10 +245,15 @@ export const firebaseClient = {
           );
         }
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log('✅ Fetched from Firestore - vitals:', results.length, 'records');
+        return results;
       } catch (error) {
-        console.error('Error fetching vitals:', error);
-        throw error;
+        console.error('❌ Error fetching vitals:', error.message, error.code);
+        if (error.code === 'permission-denied') {
+          console.error('🔐 PERMISSION DENIED: Firestore security rules may be blocking reads');
+        }
+        return [];
       }
     },
 

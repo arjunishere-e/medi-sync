@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user exists and has a role
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    // Allow authenticated users to read/write their own user document
+    match /users/{userId} {
+      allow read, write: if request.auth.uid == userId;
+    }
+
+    // Patients collection - allow all authenticated users to read
+    match /patients/{document=**} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // Alerts collection - allow all authenticated users to read/write
+    match /alerts/{document=**} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // Vitals collection - allow all authenticated users to read/write
+    match /vitals/{document=**} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // Wards collection - allow all authenticated users to read/write
+    match /wards/{document=**} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // Staff Schedules collection - allow all authenticated users to read/write
+    match /staffSchedules/{document=**} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // Medicines collection - allow all authenticated users to read/write
+    match /medicines/{document=**} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // Activity Logs collection
+    match /activityLogs/{document=**} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // Lab Reports collection
+    match /labReports/{document=**} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // Appointments collection
+    match /appointments/{document=**} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // Bookings collection
+    match /bookings/{document=**} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // Medicine Logs collection
+    match /medicineLogs/{document=**} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // Medicine Schedules collection
+    match /medicineSchedules/{document=**} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // Daily Logs collection
+    match /dailyLogs/{document=**} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // Default deny - all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

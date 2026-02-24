@@ -38,25 +38,16 @@ export default function DoctorDashboard() {
   const queryClient = useQueryClient();
 
   const { data: patientsData = [], isLoading: patientsLoading } = useQuery({
-    queryKey: ['all-patients', user?.id],
+    queryKey: ['my-patients', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // Fetch only patients referred to this specific doctor
-      const result = await firebaseClient.patients.list('-created_date', 100);
-      console.log('DoctorDashboard - Fetched all patients:', result);
+      // Fetch only patients assigned to this doctor
+      const result = await firebaseClient.patients.getByDoctor(user.id);
+      console.log('DoctorDashboard - Fetched assigned patients:', result.length, 'patients');
       console.log('DoctorDashboard - Current doctor ID:', user.id);
       
-      // Filter to show only patients referred to this doctor
-      const myPatients = result.filter(patient => {
-        const referredId = patient.referred_doctor_id || patient.doctor_id;
-        const isReferred = referredId === user.id;
-        console.log(`Patient ${patient.full_name}: referred_doctor_id=${patient.referred_doctor_id}, doctor_id=${patient.doctor_id}, user.id=${user.id}, matches=${isReferred}`);
-        return isReferred;
-      });
-      
-      console.log('DoctorDashboard - My referred patients count:', myPatients.length);
-      console.log('DoctorDashboard - My referred patients:', myPatients);
-      return myPatients;
+      // Return assigned patients
+      return result;
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5, // 5 minutes
@@ -83,6 +74,22 @@ export default function DoctorDashboard() {
   const { data: alerts = [], isLoading: alertsLoading } = useQuery({
     queryKey: ['alerts'],
     queryFn: () => firebaseClient.alerts.list('-created_date', 100)
+  });
+
+  // Fetch ALL patients for accurate ward occupancy calculation
+  const { data: allPatientsForOccupancy = [] } = useQuery({
+    queryKey: ['all-patients-for-occupancy'],
+    queryFn: async () => {
+      // Fetch all patients to calculate accurate ward occupancy
+      const result = await firebaseClient.patients.list('-created_date', 500);
+      console.log('DoctorDashboard - Fetched ALL patients for occupancy calc:', result.length, 'patients');
+      return result;
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 10, // 10 minutes
+    onError: (error) => {
+      console.error('Error fetching all patients for occupancy:', error);
+    }
   });
 
   const { data: vitals = [] } = useQuery({
@@ -242,17 +249,45 @@ export default function DoctorDashboard() {
   
   const pendingReports = Math.floor(Math.random() * 5) + 3;
 
-  // Compute ward occupancy from current patients (exclude discharged)
+  // Compute ward occupancy from ALL patients (not just doctor's patients)
   const wardOccupancy = useMemo(() => {
     const map = new Map();
-    wards.forEach(w => map.set(w.id, 0));
-    patients.forEach(p => {
+    
+    // Initialize all wards with 0 occupancy
+    wards.forEach(w => {
+      map.set(w.id, {
+        occupied: 0,
+        total: w.total_beds || 0,
+        wardName: w.name || w.ward_name
+      });
+    });
+    
+    // Count ALL patients in each ward (not just doctor's patients)
+    allPatientsForOccupancy.forEach(p => {
       if (p.ward_id && p.status !== 'discharged') {
-        map.set(p.ward_id, (map.get(p.ward_id) || 0) + 1);
+        const current = map.get(p.ward_id);
+        if (current) {
+          current.occupied += 1;
+        } else {
+          // Ward might exist but not in the map, add it
+          map.set(p.ward_id, {
+            occupied: 1,
+            total: 0,
+            wardName: 'Unknown Ward'
+          });
+        }
       }
     });
+    
+    // Debug logging
+    console.log('📊 Ward Occupancy Calculation (ALL patients):');
+    map.forEach((val, wardId) => {
+      const percentage = val.total > 0 ? Math.round((val.occupied / val.total) * 100) : 0;
+      console.log(`  ${val.wardName} (${wardId}): ${val.occupied}/${val.total} (${percentage}%)`);
+    });
+    
     return map;
-  }, [patients, wards]);
+  }, [allPatientsForOccupancy, wards]);
 
   if (patientsLoading && alertsLoading) {
     return (
@@ -714,8 +749,9 @@ export default function DoctorDashboard() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {wards.map(ward => {
-                    const occ = wardOccupancy.get(ward.id) || 0;
-                    const total = ward.total_beds || 0;
+                    const occupancyData = wardOccupancy.get(ward.id) || { occupied: 0, total: ward.total_beds || 0, wardName: ward.name };
+                    const occ = occupancyData.occupied;
+                    const total = occupancyData.total;
                     const available = Math.max(total - occ, 0);
                     const ratio = total > 0 ? (occ / total) : 0;
                     return (
@@ -731,7 +767,7 @@ export default function DoctorDashboard() {
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-600">Occupancy</span>
                           <span className="font-semibold text-slate-900">
-                            {occ}/{total}
+                            {occ}/{total} ({total > 0 ? Math.round(ratio * 100) : 0}%)
                           </span>
                         </div>
                         <div className="w-full bg-slate-200 rounded-full h-2">

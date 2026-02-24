@@ -70,7 +70,7 @@ export default function PatientRegistration() {
 
   const registerPatientMutation = useMutation({
     mutationFn: async (patientData) => {
-      // Ensure referred_doctor_id is properly set
+      // Ensure doctor assignment
       const doctorId = patientData.referred_doctor_id && patientData.referred_doctor_id !== '' 
         ? patientData.referred_doctor_id 
         : user?.id;
@@ -79,6 +79,8 @@ export default function PatientRegistration() {
         ...patientData,
         doctor_id: doctorId,
         referred_doctor_id: doctorId,
+        assigned_doctor_id: doctorId, // Add this field for the new filtering
+        ward_id: patientData.ward_id || null, // Ensure ward_id is explicitly set
         nurse_id: user?.role === 'nurse' ? user.id : null,
         registered_by: user?.id,
         created_date: new Date().toISOString(),
@@ -87,13 +89,14 @@ export default function PatientRegistration() {
         bed_allocated_by: user?.role === 'nurse' ? user.id : null,
         bed_allocation_date: patientData.bed_number ? new Date().toISOString() : null
       };
-      console.log('📝 Registering patient to Firestore with doctor_id:', doctorId, patient);
+      console.log('📝 Registering patient to Firestore with doctor_id:', doctorId, 'ward_id:', patient.ward_id, patient);
       return firebaseClient.patients.create(patient);
     },
     onSuccess: async (result) => {
       // Invalidate all related queries to sync across all dashboards
       console.log('✅ Patient registered successfully! Document ID:', result.id);
       queryClient.invalidateQueries({ queryKey: ['patients'] });
+      queryClient.invalidateQueries({ queryKey: ['my-patients'] });
       queryClient.invalidateQueries({ queryKey: ['all-patients'] });
       queryClient.invalidateQueries({ queryKey: ['wards'] });
       
