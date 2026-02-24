@@ -8,7 +8,8 @@ import {
   Volume2, 
   Loader2,
   MessageCircle,
-  X
+  X,
+  Waveform
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { base44 } from '../../api/base44Client';
@@ -130,20 +131,62 @@ Respond in a friendly, professional manner suitable for healthcare.`,
       {/* Floating button */}
       <motion.div
         className="fixed bottom-6 right-6 z-50"
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 260, damping: 20 }}
       >
-        <Button
-          size="lg"
-          className={`rounded-full h-14 w-14 shadow-lg ${
-            isListening 
-              ? 'bg-red-500 hover:bg-red-600 animate-pulse' 
-              : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
-          }`}
+        {/* Animated ring background when listening */}
+        {isListening && (
+          <>
+            <motion.div
+              className="absolute inset-0 rounded-full bg-red-400/30"
+              animate={{ scale: [1, 1.4], opacity: [1, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            />
+            <motion.div
+              className="absolute inset-0 rounded-full bg-red-400/20"
+              animate={{ scale: [1, 1.2], opacity: [1, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity, delay: 0.3 }}
+            />
+          </>
+        )}
+
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => setIsOpen(!isOpen)}
+          className={`relative flex items-center justify-center rounded-full h-16 w-16 font-semibold text-white shadow-lg transition-all duration-300 ${
+            isListening
+              ? 'bg-gradient-to-br from-red-500 via-red-600 to-red-700 shadow-red-500/50'
+              : 'bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 shadow-blue-500/40 hover:shadow-blue-500/60'
+          }`}
+          style={{
+            boxShadow: isListening 
+              ? '0 0 20px rgba(239, 68, 68, 0.5), 0 10px 30px rgba(239, 68, 68, 0.3)'
+              : '0 0 20px rgba(59, 130, 246, 0.4), 0 10px 30px rgba(59, 130, 246, 0.2)'
+          }}
         >
-          {isListening ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
-        </Button>
+          {/* Icon with animation */}
+          <motion.div
+            animate={isListening ? { scale: [1, 1.1, 1] } : {}}
+            transition={{ duration: 0.6, repeat: isListening ? Infinity : 0 }}
+          >
+            {isListening ? (
+              <MicOff className="h-7 w-7" />
+            ) : (
+              <Mic className="h-7 w-7" />
+            )}
+          </motion.div>
+
+          {/* Recording indicator dot */}
+          {isListening && (
+            <motion.div
+              className="absolute top-1 right-1 h-3 w-3 bg-white rounded-full"
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            />
+          )}
+        </motion.button>
       </motion.div>
 
       {/* Voice assistant panel */}
@@ -159,8 +202,8 @@ Respond in a friendly, professional manner suitable for healthcare.`,
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-lg bg-blue-50">
-                      <MessageCircle className="h-4 w-4 text-blue-500" />
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100">
+                      <Mic className="h-4 w-4 text-blue-600" />
                     </div>
                     <span className="font-semibold text-slate-900">Voice Assistant</span>
                   </div>
@@ -211,15 +254,16 @@ Respond in a friendly, professional manner suitable for healthcare.`,
 
                 {/* Controls */}
                 <div className="flex justify-center">
-                  <Button
-                    size="lg"
-                    className={`rounded-full h-12 w-12 ${
-                      isListening 
-                        ? 'bg-red-500 hover:bg-red-600' 
-                        : 'bg-blue-500 hover:bg-blue-600'
-                    }`}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={isListening ? stopListening : startListening}
                     disabled={isProcessing}
+                    className={`rounded-full h-14 w-14 font-semibold text-white shadow-lg transition-all duration-300 flex items-center justify-center ${
+                      isListening
+                        ? 'bg-gradient-to-br from-red-500 via-red-600 to-red-700 shadow-red-500/40'
+                        : 'bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700 shadow-blue-500/40 hover:shadow-blue-500/60'
+                    }`}
                   >
                     {isProcessing ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
@@ -228,7 +272,7 @@ Respond in a friendly, professional manner suitable for healthcare.`,
                     ) : (
                       <Mic className="h-5 w-5" />
                     )}
-                  </Button>
+                  </motion.button>
                 </div>
 
                 <p className="text-xs text-center text-slate-400 mt-3">

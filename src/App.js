@@ -18,6 +18,7 @@ import PatientDetails from './Pages/PatientDetails';
 import PatientRegistration from './Pages/PatientRegistration';
 import StaffScheduling from './Pages/StaffScheduling';
 import WardManagement from './Pages/WardManagement';
+import WardOverview from './Components/dashboard/WardOverview';
 import Navigation from './Components/navigation/Navigation';
 import AlertsPage from './Pages/AlertsPage';
 
@@ -133,6 +134,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <WardManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ward-overview"
+          element={
+            <ProtectedRoute>
+              <WardOverview />
             </ProtectedRoute>
           }
         />

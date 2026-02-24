@@ -252,7 +252,7 @@ export default function Dashboard() {
               color="red"
             />
           </Link>
-          <Link to="/ward-management" className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded">
+          <Link to={user?.role === 'nurse' ? '/ward-overview' : '/ward-management'} className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded">
             <StatsCard
               title="Bed Occupancy"
               value={`${Array.from(wardOccupancy.values()).reduce((a,b)=>a+b,0)}/${totalBeds}`}

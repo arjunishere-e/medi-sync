@@ -330,7 +330,7 @@ export default function PatientDetails() {
             Go Back
           </Button>
           <div className="flex gap-2">
-            {!editingPatient && (
+            {!editingPatient && user?.role === 'office' && (
               <>
                 <Button
                   onClick={handleEditPatient}
